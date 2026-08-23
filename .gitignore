@@ -1,0 +1,12 @@
+# Local API key — never commit this
+js/config.js
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Node (only if you later add tooling)
+node_modules/

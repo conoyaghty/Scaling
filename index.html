@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en-IE">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Area &amp; Quote</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ── Search ─────────────────────────────────────────────── -->
+  <header class="search-bar">
+    <div class="search-input-wrap">
+      <input
+        id="search"
+        type="search"
+        inputmode="text"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="characters"
+        spellcheck="false"
+        placeholder="Eircode or address"
+        aria-label="Eircode or address">
+      <button id="search-clear" class="inline-clear" type="button" aria-label="Clear search" hidden>&times;</button>
+    </div>
+    <button id="search-go" class="btn btn-primary" type="button">Find</button>
+    <button id="locate" class="icon-btn" type="button" aria-label="Use my current location" title="Use my current location">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 100 8 4 4 0 000-8zm8.94 3A9.01 9.01 0 0013 3.06V1h-2v2.06A9.01 9.01 0 003.06 11H1v2h2.06A9.01 9.01 0 0011 20.94V23h2v-2.06A9.01 9.01 0 0020.94 13H23v-2h-2.06zM12 19a7 7 0 110-14 7 7 0 010 14z"/></svg>
+    </button>
+  </header>
+
+  <div id="banner" class="banner" hidden role="status"></div>
+
+  <!-- ── Map ────────────────────────────────────────────────── -->
+  <main class="map-area">
+    <div id="map" role="application" aria-label="Aerial imagery — tap to place measurement points"></div>
+
+    <div id="map-loading" class="map-overlay">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Loading map…</p>
+    </div>
+
+    <div id="setup-needed" class="map-overlay setup" hidden>
+      <h2>Almost there</h2>
+      <p>Copy <code>js/config.example.js</code> to <code>js/config.js</code> and paste your Google Maps API key in.</p>
+      <p class="muted">You need <strong>Maps JavaScript API</strong> and <strong>Geocoding API</strong> enabled on the key.</p>
+    </div>
+
+    <!-- Live measurement readout -->
+    <div id="readout" class="readout" hidden>
+      <div class="readout-main">
+        <span id="readout-sqm">0</span><span class="unit">m²</span>
+      </div>
+      <div class="readout-sub">
+        <span id="readout-points">0 points</span>
+        <span id="readout-perimeter"></span>
+      </div>
+    </div>
+
+    <div id="hint" class="hint" hidden>Tap each corner of the area. 3 points minimum.</div>
+  </main>
+
+  <!-- ── Measure controls ───────────────────────────────────── -->
+  <div class="tool-bar">
+    <button id="undo" class="btn btn-ghost" type="button" disabled>Undo</button>
+    <button id="clear" class="btn btn-ghost" type="button" disabled>Clear</button>
+    <button id="save-area" class="btn btn-primary btn-grow" type="button" disabled>Save area</button>
+  </div>
+
+  <!-- ── Bottom sheet ───────────────────────────────────────── -->
+  <section id="sheet" class="sheet" aria-label="Job details">
+    <button id="sheet-handle" class="sheet-handle" type="button" aria-expanded="false" aria-controls="sheet-body">
+      <span class="grip" aria-hidden="true"></span>
+      <span class="sheet-summary">
+        <span id="sheet-count">No areas yet</span>
+        <strong id="sheet-total">€0.00</strong>
+      </span>
+    </button>
+
+    <div id="sheet-body" class="sheet-body">
+      <nav class="tabs" role="tablist">
+        <button class="tab is-active" data-tab="job"   role="tab" aria-selected="true"  type="button">Job</button>
+        <button class="tab"           data-tab="rates" role="tab" aria-selected="false" type="button">Rates</button>
+      </nav>
+
+      <!-- Job tab -->
+      <div id="tab-job" class="tab-panel is-active" role="tabpanel">
+        <div id="job-address" class="job-address" hidden></div>
+        <ul id="area-list" class="area-list"></ul>
+        <p id="area-empty" class="empty">Search an eircode, outline the driveway on the map, then tap <strong>Save area</strong>.</p>
+
+        <div id="quote" class="quote" hidden>
+          <div class="quote-row"><span>Subtotal</span><span id="q-subtotal">€0.00</span></div>
+          <div class="quote-row" id="q-min-row" hidden><span>Minimum charge applied</span><span id="q-chargeable">€0.00</span></div>
+          <div class="quote-row" id="q-vat-row"><span id="q-vat-label">VAT</span><span id="q-vat">€0.00</span></div>
+          <div class="quote-row quote-total"><span>Total</span><span id="q-total">€0.00</span></div>
+          <p id="q-warning" class="warn-inline" hidden></p>
+          <div class="quote-actions">
+            <button id="copy-quote" class="btn btn-primary btn-grow" type="button">Copy quote</button>
+            <button id="new-job" class="btn btn-ghost" type="button">New job</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rates tab -->
+      <div id="tab-rates" class="tab-panel" role="tabpanel">
+        <p class="muted small">
+          These ship as <strong>placeholders</strong> — put your real €/m² in. Saved to this
+          browser only. Leave a cell blank if you don't offer that combination.
+        </p>
+        <div class="rate-table-wrap">
+          <table id="rate-table" class="rate-table"></table>
+        </div>
+        <div class="settings-grid">
+          <label>Minimum charge (€)
+            <input id="set-min" type="number" inputmode="decimal" min="0" step="1">
+          </label>
+          <label>VAT rate (%)
+            <input id="set-vat" type="number" inputmode="decimal" min="0" step="0.5">
+          </label>
+          <label class="checkbox">
+            <input id="set-vat-on" type="checkbox"> Add VAT to quotes
+          </label>
+        </div>
+        <div class="quote-actions">
+          <button id="save-rates" class="btn btn-primary btn-grow" type="button">Save rates</button>
+          <button id="reset-rates" class="btn btn-ghost" type="button">Reset</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ── Save-area dialog ─────────────────────────────────────── -->
+<dialog id="area-dialog" class="dialog">
+  <form method="dialog" id="area-form">
+    <h2>Save area</h2>
+    <p class="dialog-area"><strong id="dlg-sqm">0</strong> m²</p>
+
+    <label>What is it?
+      <select id="dlg-label">
+        <option>Driveway</option>
+        <option>Patio</option>
+        <option>Path</option>
+        <option>Front</option>
+        <option>Rear</option>
+        <option>Side passage</option>
+        <option>Yard</option>
+        <option>Decking</option>
+      </select>
+    </label>
+
+    <label>Surface
+      <select id="dlg-surface"></select>
+    </label>
+
+    <label>Service
+      <select id="dlg-service"></select>
+    </label>
+
+    <p id="dlg-price" class="dialog-price"></p>
+
+    <div class="dialog-actions">
+      <button value="cancel" class="btn btn-ghost" type="submit" formnovalidate>Cancel</button>
+      <button value="ok" id="dlg-ok" class="btn btn-primary btn-grow" type="submit">Add to job</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="js/config.js" onerror="window.__configMissing = true"></script>
+<script src="js/rates.js"></script>
+<script src="js/geo.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
