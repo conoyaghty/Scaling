@@ -67,6 +67,9 @@ function serve() {
 
   const jsErrors = [];
   page.on('pageerror', (e) => jsErrors.push(e.message));
+  // "New job" asks for confirmation; Playwright dismisses dialogs by default,
+  // which would read as the user cancelling.
+  page.on('dialog', (d) => d.accept());
 
   // Supply a config so the app boots, and swap the Maps script for the mock.
   await page.route('**/js/config.js', (route) =>
@@ -186,8 +189,8 @@ function serve() {
       const el = document.querySelector(`#rate-table input[data-service="${svc}"][data-surface="${surf}"]`);
       el.value = v;
     };
-    set('Wash + seal', 'Block paving', '7.50');
-    set('Pressure wash', 'Slab / natural stone', '4.00');
+    set('Instant softwash', 'Block paving', '7.50');
+    set('Pressure washing', 'Slab / natural stone', '4.00');
     document.getElementById('set-min').value = '0';
     document.getElementById('set-vat').value = '13.5';
     document.getElementById('set-vat-on').checked = true;
@@ -205,7 +208,7 @@ function serve() {
     (await page.inputValue('#dlg-label')) === 'Driveway');
 
   await page.selectOption('#dlg-surface', 'Block paving');
-  await page.selectOption('#dlg-service', 'Wash + seal');
+  await page.selectOption('#dlg-service', 'Instant softwash');
   await page.waitForTimeout(60);
   const preview = await page.textContent('#dlg-price');
   ok(`dialog previews the line price (${preview.trim()})`, preview.includes('€7.50') && preview.includes('€900'));
@@ -227,7 +230,7 @@ function serve() {
   await page.waitForTimeout(120);
   ok('second area defaults the label to Patio', (await page.inputValue('#dlg-label')) === 'Patio');
   await page.selectOption('#dlg-surface', 'Slab / natural stone');
-  await page.selectOption('#dlg-service', 'Pressure wash');
+  await page.selectOption('#dlg-service', 'Pressure washing');
   await page.click('#dlg-ok');
   await page.waitForTimeout(150);
 
@@ -282,6 +285,186 @@ function serve() {
   ok('minimum-charge row appears when it bites', await page.isVisible('#q-min-row'));
   ok('minimum charge lifts the total to €250',
     near(parseFloat((await page.textContent('#q-total')).replace('€', '')), 250, 0.5));
+
+  /* ── Confidence + contingency ──────────────────────── */
+  console.log('\nObscured areas (no site visit to fall back on)');
+
+  await page.click('#new-job');
+  await page.waitForTimeout(100);
+  await page.click('.tab[data-tab="rates"]');
+  await page.evaluate(() => {
+    document.querySelector('#rate-table input[data-service="Progressive softwash"][data-surface="Tarmac"]').value = '3.00';
+    document.querySelector('#contingency-grid input[data-confidence="Part obscured"]').value = '10';
+    document.getElementById('set-min').value = '0';
+    document.getElementById('set-vat-on').checked = false;
+  });
+  await page.click('#save-rates');
+  await page.click('.tab[data-tab="job"]');
+
+  ok('contingency grid renders one field per level',
+    await page.locator('#contingency-grid input').count() === 3);
+
+  await page.fill('#search', 'A65F4E2');
+  await page.click('#search-go');
+  await page.waitForTimeout(150);
+
+  const cd = rectCorners(20, 5);   // 100 m²
+  for (const c of cd) await page.evaluate((p) => window.__mock.tap(p[0], p[1]), c);
+  await page.click('#save-area');
+  await page.waitForTimeout(120);
+
+  ok('confidence defaults to Clear', (await page.inputValue('#dlg-confidence')) === 'Clear');
+  const clearPreview = await page.textContent('#dlg-price');
+  ok('clear preview shows no contingency line', !clearPreview.includes('contingency'), clearPreview);
+
+  await page.selectOption('#dlg-surface', 'Tarmac');
+  await page.selectOption('#dlg-service', 'Progressive softwash');
+  await page.selectOption('#dlg-confidence', 'Part obscured');
+  await page.waitForTimeout(80);
+  const obscuredPreview = await page.textContent('#dlg-price');
+  ok(`preview shows the uplift (${obscuredPreview.replace(/\n/g, ' | ')})`,
+    obscuredPreview.includes('10% contingency') && obscuredPreview.includes('€330'));
+
+  await page.click('#dlg-ok');
+  await page.waitForTimeout(150);
+
+  ok('obscured line is flagged in the job list', await page.isVisible('.area-item-flag'));
+  ok('flag names the level and the uplift',
+    (await page.textContent('.area-item-flag')).includes('Part obscured') &&
+    (await page.textContent('.area-item-flag')).includes('+10%'));
+  ok('line price includes the contingency',
+    near(parseFloat((await page.textContent('.area-item-price')).replace('€', '')), 330, 1));
+
+  const obsQuote = await page.evaluate(async () => {
+    let captured = '';
+    navigator.clipboard.writeText = (t) => { captured = t; return Promise.resolve(); };
+    document.getElementById('copy-quote').click();
+    await new Promise((r) => setTimeout(r, 60));
+    return captured;
+  });
+  ok('quote breaks out the contingency as its own line',
+    obsQuote.includes('10% contingency'), obsQuote);
+  ok('quote no longer promises an on-site confirmation',
+    !obsQuote.toLowerCase().includes('on-site confirmation'), obsQuote);
+  ok('quote states the area was estimated',
+    obsQuote.toLowerCase().includes('estimated'), obsQuote);
+  ok('quote gives the price as holding, not provisional',
+    obsQuote.toLowerCase().includes('price holds'), obsQuote);
+
+  /* A fully clear job gets the firm wording instead. */
+  await page.click('#new-job');
+  await page.waitForTimeout(100);
+  await page.fill('#search', 'A65F4E2');
+  await page.click('#search-go');
+  await page.waitForTimeout(150);
+  for (const c of cd) await page.evaluate((p) => window.__mock.tap(p[0], p[1]), c);
+  await page.click('#save-area');
+  await page.waitForTimeout(120);
+  await page.selectOption('#dlg-surface', 'Tarmac');
+  await page.selectOption('#dlg-service', 'Pressure washing');
+  await page.click('#dlg-ok');
+  await page.waitForTimeout(150);
+
+  ok('new job cleared the previous areas', await page.locator('.area-item').count() === 1);
+  ok('confidence resets to Clear rather than inheriting the last area',
+    await page.locator('.area-item-flag').count() === 0);
+  ok('a clear job carries no flag', await page.locator('.area-item-flag').count() === 0);
+  const clearQuote = await page.evaluate(async () => {
+    let captured = '';
+    navigator.clipboard.writeText = (t) => { captured = t; return Promise.resolve(); };
+    document.getElementById('copy-quote').click();
+    await new Promise((r) => setTimeout(r, 60));
+    return captured;
+  });
+  ok('clear quote omits the estimation caveat',
+    !clearQuote.toLowerCase().includes('estimated'), clearQuote);
+  ok('clear quote still states the measurement basis',
+    clearQuote.toLowerCase().includes('aerial imagery'));
+
+  /* ── Roof pitch ────────────────────────────────────── */
+  console.log('\nRoof measuring (footprint is not the roof area)');
+
+  await page.click('#new-job');
+  await page.waitForTimeout(100);
+  await page.click('.tab[data-tab="rates"]');
+  await page.evaluate(() => {
+    document.querySelectorAll('#contingency-grid input').forEach((i) => { i.value = '0'; });
+    document.getElementById('set-min').value = '0';
+    document.getElementById('set-vat-on').checked = false;
+  });
+  await page.click('#save-rates');
+  await page.click('.tab[data-tab="job"]');
+  await page.fill('#search', 'A65F4E2');
+  await page.click('#search-go');
+  await page.waitForTimeout(150);
+
+  const roof = rectCorners(10, 10);   // 100 m² footprint
+  for (const c of roof) await page.evaluate((p) => window.__mock.tap(p[0], p[1]), c);
+  await page.click('#save-area');
+  await page.waitForTimeout(120);
+
+  ok('pitch control hidden for a ground surface', !(await page.isVisible('#dlg-pitch-row')));
+
+  await page.selectOption('#dlg-surface', 'Profiled / slate (roof)');
+  await page.waitForTimeout(80);
+  ok('pitch control appears once a roof surface is chosen', await page.isVisible('#dlg-pitch-row'));
+  ok('pitch defaults to 35°', (await page.inputValue('#dlg-pitch')) === '35');
+
+  await page.selectOption('#dlg-service', 'Roof cleaning');
+  await page.waitForTimeout(80);
+  const roofPreview = await page.textContent('#dlg-price');
+  ok(`preview converts footprint to roof area (${roofPreview.replace(/\n/g, ' | ')})`,
+    roofPreview.includes('footprint') && roofPreview.includes('122'), roofPreview);
+  ok('preview prices the roof area, not the footprint',
+    roofPreview.includes('1037') || roofPreview.includes('1038'), roofPreview);
+
+  await page.selectOption('#dlg-pitch', '0');
+  await page.waitForTimeout(80);
+  ok('flat pitch prices the footprint exactly',
+    (await page.textContent('#dlg-price')).includes('850'), await page.textContent('#dlg-price'));
+
+  await page.selectOption('#dlg-pitch', '35');
+  await page.waitForTimeout(80);
+  await page.click('#dlg-ok');
+  await page.waitForTimeout(150);
+
+  ok('job list shows the roof area, not the footprint',
+    (await page.textContent('.area-item-title')).includes('122'),
+    await page.textContent('.area-item-title'));
+  ok('job list still records the measured footprint',
+    (await page.textContent('.area-item-meta')).includes('footprint') &&
+    (await page.textContent('.area-item-meta')).includes('35°'),
+    await page.textContent('.area-item-meta'));
+  ok('roof line priced on sloped area',
+    near(parseFloat((await page.textContent('.area-item-price')).replace('€', '')), 1037.65, 1));
+
+  const roofQuote = await page.evaluate(async () => {
+    let captured = '';
+    navigator.clipboard.writeText = (t) => { captured = t; return Promise.resolve(); };
+    document.getElementById('copy-quote').click();
+    await new Promise((r) => setTimeout(r, 60));
+    return captured;
+  });
+  ok('quote shows the footprint-to-roof conversion',
+    roofQuote.includes('footprint at 35°') && roofQuote.includes('roof area'), roofQuote);
+
+  /* Switching back to a ground surface must drop the pitch uplift. */
+  for (const c of roof) await page.evaluate((p) => window.__mock.tap(p[0], p[1]), c);
+  await page.click('#save-area');
+  await page.waitForTimeout(120);
+  await page.selectOption('#dlg-surface', 'Flat tiles (roof)');
+  await page.waitForTimeout(60);
+  await page.selectOption('#dlg-surface', 'Tarmac');
+  await page.waitForTimeout(80);
+  ok('pitch control hides again when leaving a roof surface',
+    !(await page.isVisible('#dlg-pitch-row')));
+  await page.selectOption('#dlg-service', 'Progressive softwash');
+  await page.waitForTimeout(80);
+  // Tarmac/softwash-progressive was set to €3.00 by the contingency section above.
+  ok('ground surface prices the plain 100 m² footprint',
+    (await page.textContent('#dlg-price')).includes('€300'), await page.textContent('#dlg-price'));
+  ok('ground preview shows no footprint conversion',
+    !(await page.textContent('#dlg-price')).includes('footprint'));
 
   console.log('\nJS errors: ' + (jsErrors.length ? '\n  ' + jsErrors.join('\n  ') : 'none'));
   console.log('\n' + passed + '/' + (passed + failed) + ' flow checks passed\n');

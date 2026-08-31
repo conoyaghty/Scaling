@@ -1,78 +1,154 @@
 /*
  * Rate card + pricing logic.
  *
- * ⚠️  THE NUMBERS BELOW ARE PLACEHOLDERS. Replace them with your real rates.
- * You can edit them in the app (Rates tab) — edits are saved to this browser's
- * localStorage. To change the defaults for every device, edit DEFAULT_RATES here.
+ * Rates below are the real ones. To change them for every device edit
+ * DEFAULT_RATES here; to change them on one device use the app's Rates tab
+ * (those edits are saved to that browser's localStorage).
  */
 (function (global) {
   'use strict';
 
   var SURFACES = [
-    'Tarmac',
     'Concrete',
-    'Block paving',
     'Slab / natural stone',
-    'Gravel',
+    'Brick',
+    'Tarmac',
+    'Block paving',
+    'Resin',
     'Decking',
+    'Flat tiles (roof)',
+    'Profiled / slate (roof)',
   ];
 
   var SERVICES = [
-    'Pressure wash',
-    'Wash + seal',
-    'Seal only',
-    'Wash + re-sand',
-    'Weed treatment',
+    'Pressure washing',
+    'Instant softwash',
+    'Progressive softwash',
+    'Roof cleaning',
   ];
 
-  // €/m². null = we do not offer that service on that surface.
+  /* Priced on sloped area rather than footprint — see PITCHES. */
+  var ROOF_SURFACES = ['Flat tiles (roof)', 'Profiled / slate (roof)'];
+
+  function isRoof(surface) {
+    return ROOF_SURFACES.indexOf(surface) !== -1;
+  }
+
+  /*
+   * The "(roof)" suffix disambiguates the surface picker, but on a printed
+   * quote it sits beside "Roof cleaning" and just nests brackets. Strip it.
+   */
+  function surfaceLabel(surface) {
+    return String(surface || '').replace(/\s*\(roof\)$/, '');
+  }
+
+  /*
+   * €/m². null = not offered on that surface.
+   *
+   * Pressure washing is €3.50 on everything EXCEPT tarmac, block paving,
+   * decking and resin — high pressure damages those, so they are nulled here
+   * and go through softwash instead. Softwash is priced on any ground surface;
+   * roofs are their own service.
+   */
   var DEFAULT_RATES = {
-    'Pressure wash': {
-      'Tarmac': 3.00,
-      'Concrete': 3.25,
-      'Block paving': 3.75,
-      'Slab / natural stone': 4.00,
-      'Gravel': null,
-      'Decking': 4.50,
-    },
-    'Wash + seal': {
-      'Tarmac': 6.50,
-      'Concrete': 6.75,
-      'Block paving': 7.50,
-      'Slab / natural stone': 8.00,
-      'Gravel': null,
-      'Decking': 9.00,
-    },
-    'Seal only': {
-      'Tarmac': 4.00,
-      'Concrete': 4.00,
-      'Block paving': 4.50,
-      'Slab / natural stone': 5.00,
-      'Gravel': null,
-      'Decking': 5.50,
-    },
-    'Wash + re-sand': {
+    'Pressure washing': {
+      'Concrete': 3.50,
+      'Slab / natural stone': 3.50,
+      'Brick': 3.50,
       'Tarmac': null,
-      'Concrete': null,
-      'Block paving': 5.50,
-      'Slab / natural stone': 5.50,
-      'Gravel': null,
+      'Block paving': null,
+      'Resin': null,
       'Decking': null,
+      'Flat tiles (roof)': null,
+      'Profiled / slate (roof)': null,
     },
-    'Weed treatment': {
-      'Tarmac': 1.00,
-      'Concrete': 1.00,
-      'Block paving': 1.25,
-      'Slab / natural stone': 1.25,
-      'Gravel': 1.50,
+    'Instant softwash': {
+      'Concrete': 4.50,
+      'Slab / natural stone': 4.50,
+      'Brick': 4.50,
+      'Tarmac': 4.50,
+      'Block paving': 4.50,
+      'Resin': 4.50,
+      'Decking': 4.50,
+      'Flat tiles (roof)': null,
+      'Profiled / slate (roof)': null,
+    },
+    'Progressive softwash': {
+      'Concrete': 3.50,
+      'Slab / natural stone': 3.50,
+      'Brick': 3.50,
+      'Tarmac': 3.50,
+      'Block paving': 3.50,
+      'Resin': 3.50,
+      'Decking': 3.50,
+      'Flat tiles (roof)': null,
+      'Profiled / slate (roof)': null,
+    },
+    'Roof cleaning': {
+      'Concrete': null,
+      'Slab / natural stone': null,
+      'Brick': null,
+      'Tarmac': null,
+      'Block paving': null,
+      'Resin': null,
       'Decking': null,
+      'Flat tiles (roof)': 7.50,
+      'Profiled / slate (roof)': 8.50,
     },
   };
+
+  /*
+   * Aerial imagery measures a roof's FOOTPRINT. The actual surface you clean is
+   * larger by 1/cos(pitch), and at Irish roof pitches that is not a rounding
+   * error — a 35° roof is 22% bigger than it looks from above. Pricing the
+   * footprint would under-quote by that much.
+   */
+  var PITCHES = [
+    { label: 'Flat / near flat', deg: 0 },
+    { label: '15° shallow', deg: 15 },
+    { label: '20°', deg: 20 },
+    { label: '25°', deg: 25 },
+    { label: '30°', deg: 30 },
+    { label: '35° (typical)', deg: 35 },
+    { label: '40°', deg: 40 },
+    { label: '45° steep', deg: 45 },
+    { label: '50° very steep', deg: 50 },
+  ];
+
+  var DEFAULT_PITCH = 35;
+
+  function pitchMultiplier(deg) {
+    var d = (typeof deg === 'number' && isFinite(deg)) ? deg : 0;
+    if (d <= 0) return 1;
+    if (d >= 85) d = 85;                      // guard against a divide-by-~zero
+    return 1 / Math.cos(d * Math.PI / 180);
+  }
+
+  function pitchLabel(deg) {
+    for (var i = 0; i < PITCHES.length; i++) {
+      if (PITCHES[i].deg === deg) return PITCHES[i].label;
+    }
+    return deg + '°';
+  }
+
+  /*
+   * How well the imagery showed the boundary. These quotes go out without a
+   * site visit, so an area you had to guess at under tree cover carries real
+   * risk — this records which lines those are and optionally prices the risk in.
+   */
+  var CONFIDENCE = ['Clear', 'Part obscured', 'Mostly estimated'];
 
   var DEFAULT_SETTINGS = {
     minCharge: 120,     // € — job floor, applied to the ex-VAT subtotal
     vatRate: 13.5,      // % — Irish reduced rate typically applies to these services
     vatEnabled: true,
+    // ⚠️ Placeholders. % added to a line you could not see clearly. Set every
+    // level to 0 to keep the flag purely informational.
+    contingency: {
+      'Clear': 0,
+      'Part obscured': 10,
+      'Mostly estimated': 20,
+    },
   };
 
   var STORAGE_KEY = 'areaTool.rates.v1';
@@ -110,10 +186,21 @@
         });
         if (saved.settings) {
           Object.keys(DEFAULT_SETTINGS).forEach(function (k) {
+            if (k === 'contingency') return;   // nested — merged per level below
             if (Object.prototype.hasOwnProperty.call(saved.settings, k)) {
               state.settings[k] = saved.settings[k];
             }
           });
+          // Per level, so a browser holding settings saved before contingency
+          // existed still picks up the defaults for any level it lacks.
+          if (saved.settings.contingency) {
+            CONFIDENCE.forEach(function (level) {
+              var v = saved.settings.contingency[level];
+              if (typeof v === 'number' && isFinite(v) && v >= 0) {
+                state.settings.contingency[level] = v;
+              }
+            });
+          }
         }
       }
     } catch (e) {
@@ -147,8 +234,17 @@
     return (typeof r === 'number' && isFinite(r)) ? r : null;
   }
 
+  function contingencyFor(state, confidence) {
+    var c = state.settings.contingency || {};
+    var v = c[confidence || 'Clear'];
+    return (typeof v === 'number' && isFinite(v) && v > 0) ? v : 0;
+  }
+
   /*
-   * areas: [{ label, sqm, service, surface }]
+   * areas: [{ label, sqm, service, surface, confidence, pitch }]
+   *   sqm   — measured footprint from the imagery
+   *   pitch — roof pitch in degrees; ignored for ground surfaces
+   *
    * Returns a fully broken-out quote so the UI never re-derives money itself.
    */
   function quote(state, areas) {
@@ -156,14 +252,33 @@
     // rounded lines — so the figures printed on a quote always add up.
     var lines = areas.map(function (a) {
       var rate = rateFor(state, a.service, a.surface);
-      var total = (rate === null) ? null : round2(a.sqm * rate);
+      var confidence = a.confidence || 'Clear';
+      var pct = contingencyFor(state, confidence);
+
+      // Roofs are charged on sloped area; everything else on the footprint.
+      var roof = isRoof(a.surface);
+      var pitch = roof ? (a.pitch || 0) : 0;
+      var mult = roof ? pitchMultiplier(pitch) : 1;
+      var chargeSqm = a.sqm * mult;
+
+      var base = (rate === null) ? null : round2(chargeSqm * rate);
+      var uplift = (base === null) ? 0 : round2(base * (pct / 100));
       return {
         label: a.label,
-        sqm: a.sqm,
+        sqm: a.sqm,                 // footprint as measured
+        chargeSqm: chargeSqm,       // what the rate is applied to
+        isRoof: roof,
+        pitch: pitch,
+        pitchMultiplier: mult,
         service: a.service,
         surface: a.surface,
         rate: rate,
-        total: total,
+        confidence: confidence,
+        uncertain: confidence !== 'Clear',
+        contingencyPct: pct,
+        base: base,
+        contingency: uplift,
+        total: (base === null) ? null : round2(base + uplift),
         unpriced: rate === null,
       };
     });
@@ -193,6 +308,9 @@
       vatEnabled: state.settings.vatEnabled,
       total: round2(chargeable + vat),
       hasUnpriced: lines.some(function (l) { return l.unpriced; }),
+      hasUncertain: lines.some(function (l) { return l.uncertain; }),
+      hasRoof: lines.some(function (l) { return l.isRoof; }),
+      contingencyTotal: round2(lines.reduce(function (s, l) { return s + l.contingency; }, 0)),
     };
   }
 
@@ -200,6 +318,15 @@
     round2: round2,
     SURFACES: SURFACES,
     SERVICES: SERVICES,
+    CONFIDENCE: CONFIDENCE,
+    ROOF_SURFACES: ROOF_SURFACES,
+    surfaceLabel: surfaceLabel,
+    PITCHES: PITCHES,
+    DEFAULT_PITCH: DEFAULT_PITCH,
+    isRoof: isRoof,
+    pitchMultiplier: pitchMultiplier,
+    pitchLabel: pitchLabel,
+    contingencyFor: contingencyFor,
     DEFAULT_RATES: DEFAULT_RATES,
     DEFAULT_SETTINGS: DEFAULT_SETTINGS,
     load: load,

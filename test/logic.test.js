@@ -197,10 +197,10 @@ const base = Rates.load();
 
 check('prices a single area off the rate card', () => {
   const s = JSON.parse(JSON.stringify(base));
-  s.rates['Wash + seal']['Block paving'] = 7.5;
+  s.rates['Instant softwash']['Block paving'] = 7.5;
   s.settings = { minCharge: 0, vatRate: 0, vatEnabled: false };
   const q = Rates.quote(s, [
-    { label: 'Driveway', sqm: 100, service: 'Wash + seal', surface: 'Block paving' },
+    { label: 'Driveway', sqm: 100, service: 'Instant softwash', surface: 'Block paving' },
   ]);
   assert.strictEqual(q.subtotal, 750);
   assert.strictEqual(q.total, 750);
@@ -208,12 +208,12 @@ check('prices a single area off the rate card', () => {
 
 check('sums multiple areas in one job', () => {
   const s = JSON.parse(JSON.stringify(base));
-  s.rates['Wash + seal']['Block paving'] = 7.5;
-  s.rates['Pressure wash']['Slab / natural stone'] = 4.0;
+  s.rates['Instant softwash']['Block paving'] = 7.5;
+  s.rates['Pressure washing']['Slab / natural stone'] = 4.0;
   s.settings = { minCharge: 0, vatRate: 0, vatEnabled: false };
   const q = Rates.quote(s, [
-    { label: 'Driveway', sqm: 100, service: 'Wash + seal', surface: 'Block paving' },
-    { label: 'Patio', sqm: 25, service: 'Pressure wash', surface: 'Slab / natural stone' },
+    { label: 'Driveway', sqm: 100, service: 'Instant softwash', surface: 'Block paving' },
+    { label: 'Patio', sqm: 25, service: 'Pressure washing', surface: 'Slab / natural stone' },
   ]);
   assert.strictEqual(q.subtotal, 850);   // 750 + 100
   assert.strictEqual(q.lines.length, 2);
@@ -221,10 +221,10 @@ check('sums multiple areas in one job', () => {
 
 check('applies VAT on top of the subtotal', () => {
   const s = JSON.parse(JSON.stringify(base));
-  s.rates['Pressure wash']['Tarmac'] = 3.0;
+  s.rates['Pressure washing']['Concrete'] = 3.0;
   s.settings = { minCharge: 0, vatRate: 13.5, vatEnabled: true };
   const q = Rates.quote(s, [
-    { label: 'Driveway', sqm: 100, service: 'Pressure wash', surface: 'Tarmac' },
+    { label: 'Driveway', sqm: 100, service: 'Pressure washing', surface: 'Concrete' },
   ]);
   assert.strictEqual(q.subtotal, 300);
   assert.ok(Math.abs(q.vat - 40.5) < 1e-9);
@@ -233,10 +233,10 @@ check('applies VAT on top of the subtotal', () => {
 
 check('lifts a small job to the minimum charge', () => {
   const s = JSON.parse(JSON.stringify(base));
-  s.rates['Pressure wash']['Tarmac'] = 3.0;
+  s.rates['Pressure washing']['Concrete'] = 3.0;
   s.settings = { minCharge: 120, vatRate: 0, vatEnabled: false };
   const q = Rates.quote(s, [
-    { label: 'Path', sqm: 10, service: 'Pressure wash', surface: 'Tarmac' },
+    { label: 'Path', sqm: 10, service: 'Pressure washing', surface: 'Concrete' },
   ]);
   assert.strictEqual(q.subtotal, 30);
   assert.strictEqual(q.minChargeApplied, true);
@@ -246,10 +246,10 @@ check('lifts a small job to the minimum charge', () => {
 
 check('does not apply the minimum to a job already above it', () => {
   const s = JSON.parse(JSON.stringify(base));
-  s.rates['Pressure wash']['Tarmac'] = 3.0;
+  s.rates['Pressure washing']['Concrete'] = 3.0;
   s.settings = { minCharge: 120, vatRate: 0, vatEnabled: false };
   const q = Rates.quote(s, [
-    { label: 'Driveway', sqm: 100, service: 'Pressure wash', surface: 'Tarmac' },
+    { label: 'Driveway', sqm: 100, service: 'Pressure washing', surface: 'Concrete' },
   ]);
   assert.strictEqual(q.minChargeApplied, false);
   assert.strictEqual(q.total, 300);
@@ -257,10 +257,10 @@ check('does not apply the minimum to a job already above it', () => {
 
 check('VAT is charged on the minimum, not the smaller subtotal', () => {
   const s = JSON.parse(JSON.stringify(base));
-  s.rates['Pressure wash']['Tarmac'] = 3.0;
+  s.rates['Pressure washing']['Concrete'] = 3.0;
   s.settings = { minCharge: 120, vatRate: 13.5, vatEnabled: true };
   const q = Rates.quote(s, [
-    { label: 'Path', sqm: 10, service: 'Pressure wash', surface: 'Tarmac' },
+    { label: 'Path', sqm: 10, service: 'Pressure washing', surface: 'Concrete' },
   ]);
   assert.ok(Math.abs(q.vat - 16.2) < 1e-9, `vat was ${q.vat}`);
   assert.ok(Math.abs(q.total - 136.2) < 1e-9);
@@ -270,7 +270,7 @@ check('flags an unsupported service/surface combination', () => {
   const s = JSON.parse(JSON.stringify(base));
   s.settings = { minCharge: 0, vatRate: 0, vatEnabled: false };
   const q = Rates.quote(s, [
-    { label: 'Drive', sqm: 100, service: 'Wash + re-sand', surface: 'Tarmac' },
+    { label: 'Drive', sqm: 100, service: 'Roof cleaning', surface: 'Concrete' },
   ]);
   assert.strictEqual(q.hasUnpriced, true);
   assert.strictEqual(q.lines[0].rate, null);
@@ -286,15 +286,15 @@ check('an empty job is €0 with no minimum charge', () => {
 check('printed line totals always add up to the printed subtotal', () => {
   // Awkward areas × awkward rates — the classic penny-mismatch on a quote.
   const s = JSON.parse(JSON.stringify(base));
-  s.rates['Pressure wash']['Tarmac'] = 3.33;
-  s.rates['Pressure wash']['Concrete'] = 4.17;
+  s.rates['Pressure washing']['Concrete'] = 3.33;
+  s.rates['Pressure washing']['Concrete'] = 4.17;
   s.settings = { minCharge: 0, vatRate: 0, vatEnabled: false };
 
   for (let i = 0; i < 400; i++) {
     const q = Rates.quote(s, [
-      { label: 'A', sqm: 10 + i * 0.137, service: 'Pressure wash', surface: 'Tarmac' },
-      { label: 'B', sqm: 7 + i * 0.291, service: 'Pressure wash', surface: 'Concrete' },
-      { label: 'C', sqm: 3 + i * 0.033, service: 'Pressure wash', surface: 'Tarmac' },
+      { label: 'A', sqm: 10 + i * 0.137, service: 'Pressure washing', surface: 'Concrete' },
+      { label: 'B', sqm: 7 + i * 0.291, service: 'Pressure washing', surface: 'Concrete' },
+      { label: 'C', sqm: 3 + i * 0.033, service: 'Pressure washing', surface: 'Concrete' },
     ]);
     const printedLines = q.lines.reduce((sum, l) => sum + Number(l.total.toFixed(2)), 0);
     assert.strictEqual(
@@ -306,11 +306,11 @@ check('printed line totals always add up to the printed subtotal', () => {
 
 check('subtotal + VAT always equals the printed total', () => {
   const s = JSON.parse(JSON.stringify(base));
-  s.rates['Wash + seal']['Block paving'] = 7.35;
+  s.rates['Instant softwash']['Block paving'] = 7.35;
   s.settings = { minCharge: 0, vatRate: 13.5, vatEnabled: true };
   for (let i = 0; i < 400; i++) {
     const q = Rates.quote(s, [
-      { label: 'Drive', sqm: 11 + i * 0.417, service: 'Wash + seal', surface: 'Block paving' },
+      { label: 'Drive', sqm: 11 + i * 0.417, service: 'Instant softwash', surface: 'Block paving' },
     ]);
     assert.strictEqual(
       Number((q.chargeable + q.vat).toFixed(2)), Number(q.total.toFixed(2)),
@@ -319,32 +319,300 @@ check('subtotal + VAT always equals the printed total', () => {
   }
 });
 
+/* ── Measurement confidence / contingency ────────────────── */
+
+console.log('\nMeasurement confidence (quoting without a site visit)');
+
+function withRates(overrides) {
+  const s = JSON.parse(JSON.stringify(base));
+  s.rates['Pressure washing']['Concrete'] = 3.0;
+  s.settings = {
+    minCharge: 0, vatRate: 0, vatEnabled: false,
+    contingency: Object.assign({ 'Clear': 0, 'Part obscured': 10, 'Mostly estimated': 20 }, overrides),
+  };
+  return s;
+}
+
+check('a clear area carries no contingency', () => {
+  const q = Rates.quote(withRates(), [
+    { label: 'Drive', sqm: 100, service: 'Pressure washing', surface: 'Concrete', confidence: 'Clear' },
+  ]);
+  assert.strictEqual(q.lines[0].contingency, 0);
+  assert.strictEqual(q.lines[0].uncertain, false);
+  assert.strictEqual(q.total, 300);
+  assert.strictEqual(q.hasUncertain, false);
+});
+
+check('a part-obscured area adds its contingency', () => {
+  const q = Rates.quote(withRates(), [
+    { label: 'Drive', sqm: 100, service: 'Pressure washing', surface: 'Concrete', confidence: 'Part obscured' },
+  ]);
+  assert.strictEqual(q.lines[0].base, 300);
+  assert.strictEqual(q.lines[0].contingency, 30);
+  assert.strictEqual(q.lines[0].total, 330);
+  assert.strictEqual(q.lines[0].uncertain, true);
+  assert.strictEqual(q.hasUncertain, true);
+  assert.strictEqual(q.total, 330);
+});
+
+check('a mostly-estimated area adds the larger contingency', () => {
+  const q = Rates.quote(withRates(), [
+    { label: 'Drive', sqm: 100, service: 'Pressure washing', surface: 'Concrete', confidence: 'Mostly estimated' },
+  ]);
+  assert.strictEqual(q.lines[0].total, 360);
+  assert.strictEqual(q.contingencyTotal, 60);
+});
+
+check('zeroed contingency keeps the flag but not the uplift', () => {
+  const s = withRates({ 'Part obscured': 0, 'Mostly estimated': 0 });
+  const q = Rates.quote(s, [
+    { label: 'Drive', sqm: 100, service: 'Pressure washing', surface: 'Concrete', confidence: 'Mostly estimated' },
+  ]);
+  assert.strictEqual(q.lines[0].total, 300);
+  assert.strictEqual(q.lines[0].uncertain, true, 'still flagged');
+  assert.strictEqual(q.hasUncertain, true);
+  assert.strictEqual(q.contingencyTotal, 0);
+});
+
+check('an area saved before confidence existed defaults to Clear', () => {
+  const q = Rates.quote(withRates(), [
+    { label: 'Drive', sqm: 100, service: 'Pressure washing', surface: 'Concrete' },   // no confidence key
+  ]);
+  assert.strictEqual(q.lines[0].confidence, 'Clear');
+  assert.strictEqual(q.lines[0].contingency, 0);
+  assert.strictEqual(q.total, 300);
+});
+
+check('contingency is mixed correctly across a multi-area job', () => {
+  const s = withRates();
+  s.rates['Instant softwash']['Block paving'] = 7.5;
+  const q = Rates.quote(s, [
+    { label: 'Drive', sqm: 100, service: 'Instant softwash', surface: 'Block paving', confidence: 'Clear' },
+    { label: 'Patio', sqm: 100, service: 'Pressure washing', surface: 'Concrete', confidence: 'Part obscured' },
+  ]);
+  assert.strictEqual(q.lines[0].total, 750);   // clear, untouched
+  assert.strictEqual(q.lines[1].total, 330);   // 300 + 10%
+  assert.strictEqual(q.subtotal, 1080);
+  assert.strictEqual(q.contingencyTotal, 30);
+});
+
+check('contingency lines still add up to the subtotal', () => {
+  const s = withRates({ 'Part obscured': 7.5 });
+  s.rates['Pressure washing']['Concrete'] = 4.17;
+  for (let i = 0; i < 300; i++) {
+    const q = Rates.quote(s, [
+      { label: 'A', sqm: 13 + i * 0.211, service: 'Pressure washing', surface: 'Concrete', confidence: 'Part obscured' },
+      { label: 'B', sqm: 9 + i * 0.373, service: 'Pressure washing', surface: 'Concrete', confidence: 'Mostly estimated' },
+    ]);
+    const printed = q.lines.reduce((s2, l) => s2 + Number(l.total.toFixed(2)), 0);
+    assert.strictEqual(Number(printed.toFixed(2)), Number(q.subtotal.toFixed(2)), `iteration ${i}`);
+    // Each line's own parts must also reconcile.
+    q.lines.forEach((l) => {
+      assert.strictEqual(Number((l.base + l.contingency).toFixed(2)), Number(l.total.toFixed(2)));
+    });
+  }
+});
+
+check('VAT and minimum charge apply on top of contingency', () => {
+  const s = withRates();
+  s.settings.minCharge = 0;
+  s.settings.vatEnabled = true;
+  s.settings.vatRate = 13.5;
+  const q = Rates.quote(s, [
+    { label: 'Drive', sqm: 100, service: 'Pressure washing', surface: 'Concrete', confidence: 'Part obscured' },
+  ]);
+  assert.strictEqual(q.subtotal, 330);           // 300 + 10%
+  assert.ok(Math.abs(q.vat - 44.55) < 1e-9, `vat ${q.vat}`);
+  assert.ok(Math.abs(q.total - 374.55) < 1e-9);
+});
+
+check('contingency settings survive a save/load round-trip', () => {
+  const s = Rates.load();
+  s.settings.contingency['Part obscured'] = 12.5;
+  Rates.save(s);
+  assert.strictEqual(Rates.load().settings.contingency['Part obscured'], 12.5);
+  Rates.reset();
+});
+
+check('settings saved before contingency existed still get defaults', () => {
+  // Simulate an older browser's stored blob with no contingency key at all.
+  store.set('areaTool.rates.v1', JSON.stringify({
+    rates: {}, settings: { minCharge: 99, vatRate: 23, vatEnabled: false },
+  }));
+  const s = Rates.load();
+  assert.strictEqual(s.settings.minCharge, 99, 'old settings still honoured');
+  assert.deepStrictEqual(s.settings.contingency, Rates.DEFAULT_SETTINGS.contingency,
+    'missing contingency filled from defaults');
+  Rates.reset();
+});
+
+/* ── The actual rate card ────────────────────────────────── */
+
+console.log('\nRate card as quoted');
+
+check('pressure washing is €3.50 on the surfaces it suits', () => {
+  ['Concrete', 'Slab / natural stone', 'Brick'].forEach((surf) => {
+    assert.strictEqual(Rates.rateFor(base, 'Pressure washing', surf), 3.50, surf);
+  });
+});
+
+check('pressure washing is not offered on tarmac, block paving, decking or resin', () => {
+  ['Tarmac', 'Block paving', 'Decking', 'Resin'].forEach((surf) => {
+    assert.strictEqual(Rates.rateFor(base, 'Pressure washing', surf), null, surf);
+  });
+});
+
+check('softwash instant is €4.50 on every ground surface', () => {
+  ['Concrete', 'Slab / natural stone', 'Brick', 'Tarmac', 'Block paving', 'Resin', 'Decking']
+    .forEach((surf) => {
+      assert.strictEqual(Rates.rateFor(base, 'Instant softwash', surf), 4.50, surf);
+    });
+});
+
+check('softwash progressive is €3.50 on every ground surface', () => {
+  ['Concrete', 'Slab / natural stone', 'Brick', 'Tarmac', 'Block paving', 'Resin', 'Decking']
+    .forEach((surf) => {
+      assert.strictEqual(Rates.rateFor(base, 'Progressive softwash', surf), 3.50, surf);
+    });
+});
+
+check('roof cleaning is €7.50 flat tiles, €8.50 everything else', () => {
+  assert.strictEqual(Rates.rateFor(base, 'Roof cleaning', 'Flat tiles (roof)'), 7.50);
+  assert.strictEqual(Rates.rateFor(base, 'Roof cleaning', 'Profiled / slate (roof)'), 8.50);
+});
+
+check('roof cleaning is not offered on ground surfaces, and vice versa', () => {
+  assert.strictEqual(Rates.rateFor(base, 'Roof cleaning', 'Concrete'), null);
+  assert.strictEqual(Rates.rateFor(base, 'Pressure washing', 'Flat tiles (roof)'), null);
+  assert.strictEqual(Rates.rateFor(base, 'Instant softwash', 'Profiled / slate (roof)'), null);
+});
+
+/* ── Roof pitch ──────────────────────────────────────────── */
+
+console.log('\nRoof pitch (footprint → actual roof area)');
+
+check('identifies roof surfaces', () => {
+  assert.strictEqual(Rates.isRoof('Flat tiles (roof)'), true);
+  assert.strictEqual(Rates.isRoof('Profiled / slate (roof)'), true);
+  assert.strictEqual(Rates.isRoof('Concrete'), false);
+  assert.strictEqual(Rates.isRoof(undefined), false);
+});
+
+check('pitch multipliers match 1/cos(pitch)', () => {
+  const cases = [[0, 1.000], [15, 1.035], [25, 1.103], [30, 1.155], [35, 1.221], [45, 1.414]];
+  cases.forEach(([deg, expected]) => {
+    assert.ok(Math.abs(Rates.pitchMultiplier(deg) - expected) < 0.001,
+      `${deg}° gave ${Rates.pitchMultiplier(deg).toFixed(4)}, expected ${expected}`);
+  });
+});
+
+check('a bad or missing pitch is treated as flat, never NaN or Infinity', () => {
+  [undefined, null, NaN, 'thirty', -10].forEach((v) => {
+    assert.strictEqual(Rates.pitchMultiplier(v), 1, String(v));
+  });
+  assert.ok(isFinite(Rates.pitchMultiplier(90)), '90° must not divide by zero');
+});
+
+check('a 35° roof is priced on 22% more than its footprint', () => {
+  const s = JSON.parse(JSON.stringify(base));
+  s.settings = { minCharge: 0, vatRate: 0, vatEnabled: false, contingency: { 'Clear': 0 } };
+  const q = Rates.quote(s, [
+    { label: 'Roof', sqm: 100, service: 'Roof cleaning', surface: 'Profiled / slate (roof)', pitch: 35 },
+  ]);
+  assert.ok(Math.abs(q.lines[0].chargeSqm - 122.08) < 0.05, `chargeSqm ${q.lines[0].chargeSqm}`);
+  // 122.08 m² × €8.50 — not 100 × 8.50 = €850, which is what footprint pricing gives.
+  assert.ok(Math.abs(q.total - 1037.65) < 0.5, `total ${q.total}`);
+  assert.ok(q.total > 850 * 1.2, 'must exceed naive footprint pricing by ~22%');
+  assert.strictEqual(q.hasRoof, true);
+});
+
+check('a flat roof is priced on its footprint exactly', () => {
+  const s = JSON.parse(JSON.stringify(base));
+  s.settings = { minCharge: 0, vatRate: 0, vatEnabled: false, contingency: { 'Clear': 0 } };
+  const q = Rates.quote(s, [
+    { label: 'Roof', sqm: 100, service: 'Roof cleaning', surface: 'Flat tiles (roof)', pitch: 0 },
+  ]);
+  assert.strictEqual(q.lines[0].chargeSqm, 100);
+  assert.strictEqual(q.total, 750);
+});
+
+check('pitch is ignored on a ground surface even if supplied', () => {
+  const s = JSON.parse(JSON.stringify(base));
+  s.settings = { minCharge: 0, vatRate: 0, vatEnabled: false, contingency: { 'Clear': 0 } };
+  const q = Rates.quote(s, [
+    { label: 'Drive', sqm: 100, service: 'Progressive softwash', surface: 'Tarmac', pitch: 45 },
+  ]);
+  assert.strictEqual(q.lines[0].chargeSqm, 100, 'a driveway has no pitch uplift');
+  assert.strictEqual(q.lines[0].isRoof, false);
+  assert.strictEqual(q.total, 350);
+});
+
+check('a roof saved with no pitch does not silently inflate', () => {
+  const s = JSON.parse(JSON.stringify(base));
+  s.settings = { minCharge: 0, vatRate: 0, vatEnabled: false, contingency: { 'Clear': 0 } };
+  const q = Rates.quote(s, [
+    { label: 'Roof', sqm: 100, service: 'Roof cleaning', surface: 'Flat tiles (roof)' },
+  ]);
+  assert.strictEqual(q.lines[0].chargeSqm, 100);
+});
+
+check('pitch and contingency compound in the right order', () => {
+  const s = JSON.parse(JSON.stringify(base));
+  s.settings = {
+    minCharge: 0, vatRate: 0, vatEnabled: false,
+    contingency: { 'Clear': 0, 'Part obscured': 10, 'Mostly estimated': 20 },
+  };
+  const q = Rates.quote(s, [
+    {
+      label: 'Roof', sqm: 100, service: 'Roof cleaning',
+      surface: 'Flat tiles (roof)', pitch: 30, confidence: 'Part obscured',
+    },
+  ]);
+  // 100 × 1.1547 = 115.47 m²; × €7.50 = €866.03; + 10% = €952.63
+  assert.ok(Math.abs(q.lines[0].base - 866.03) < 0.05, `base ${q.lines[0].base}`);
+  assert.ok(Math.abs(q.lines[0].contingency - 86.60) < 0.05, `cont ${q.lines[0].contingency}`);
+  assert.ok(Math.abs(q.total - 952.63) < 0.05, `total ${q.total}`);
+});
+
+check('a mixed roof-and-driveway job totals correctly', () => {
+  const s = JSON.parse(JSON.stringify(base));
+  s.settings = { minCharge: 0, vatRate: 0, vatEnabled: false, contingency: { 'Clear': 0 } };
+  const q = Rates.quote(s, [
+    { label: 'Roof', sqm: 80, service: 'Roof cleaning', surface: 'Flat tiles (roof)', pitch: 0 },
+    { label: 'Driveway', sqm: 100, service: 'Instant softwash', surface: 'Block paving' },
+  ]);
+  assert.strictEqual(q.lines[0].total, 600);   // 80 × 7.50
+  assert.strictEqual(q.lines[1].total, 450);   // 100 × 4.50
+  assert.strictEqual(q.subtotal, 1050);
+  assert.strictEqual(q.hasRoof, true);
+});
+
 /* ── Rate persistence ────────────────────────────────────── */
 
 console.log('\nRate persistence');
 
 check('saves and reloads edited rates', () => {
   const s = Rates.load();
-  s.rates['Pressure wash']['Tarmac'] = 9.99;
+  s.rates['Pressure washing']['Concrete'] = 9.99;
   s.settings.minCharge = 200;
   assert.strictEqual(Rates.save(s), true);
   const back = Rates.load();
-  assert.strictEqual(back.rates['Pressure wash']['Tarmac'], 9.99);
+  assert.strictEqual(back.rates['Pressure washing']['Concrete'], 9.99);
   assert.strictEqual(back.settings.minCharge, 200);
 });
 
 check('reset restores the built-in defaults', () => {
   const s = Rates.reset();
-  assert.strictEqual(s.rates['Pressure wash']['Tarmac'], Rates.DEFAULT_RATES['Pressure wash']['Tarmac']);
+  assert.strictEqual(s.rates['Pressure washing']['Concrete'], Rates.DEFAULT_RATES['Pressure washing']['Concrete']);
   assert.strictEqual(s.settings.minCharge, Rates.DEFAULT_SETTINGS.minCharge);
   assert.strictEqual(Rates.load().settings.minCharge, Rates.DEFAULT_SETTINGS.minCharge);
 });
 
 check('a null rate survives a save/load round-trip', () => {
   const s = Rates.load();
-  s.rates['Pressure wash']['Tarmac'] = null;
+  s.rates['Pressure washing']['Concrete'] = null;
   Rates.save(s);
-  assert.strictEqual(Rates.load().rates['Pressure wash']['Tarmac'], null);
+  assert.strictEqual(Rates.load().rates['Pressure washing']['Concrete'], null);
   Rates.reset();
 });
 

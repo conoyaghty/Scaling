@@ -2,7 +2,7 @@
   "name": "area-quote",
   "version": "1.0.0",
   "private": true,
-  "description": "Measure driveways and patios from aerial imagery by eircode, and price them off a rate card.",
+  "description": "Measure driveways, patios and roofs from aerial imagery by eircode, and price them off a rate card.",
   "scripts": {
     "start": "node test/serve.js",
     "test": "node test/logic.test.js",

@@ -297,6 +297,17 @@
   function buildDialogSelects() {
     fillSelect($('dlg-surface'), window.Rates.SURFACES);
     fillSelect($('dlg-service'), window.Rates.SERVICES);
+    fillSelect($('dlg-confidence'), window.Rates.CONFIDENCE);
+
+    var pitch = $('dlg-pitch');
+    pitch.innerHTML = '';
+    window.Rates.PITCHES.forEach(function (p) {
+      var o = document.createElement('option');
+      o.value = String(p.deg);
+      o.textContent = p.label + '  (×' + window.Rates.pitchMultiplier(p.deg).toFixed(2) + ')';
+      pitch.appendChild(o);
+    });
+    pitch.value = String(window.Rates.DEFAULT_PITCH);
   }
 
   function fillSelect(sel, values) {
@@ -323,6 +334,12 @@
       labelSel.value = 'Driveway';
     }
 
+    // Always reset to Clear. Confidence must be a deliberate call on each area —
+    // inheriting it from the last one would quietly add contingency to a line
+    // you could see perfectly well.
+    $('dlg-confidence').value = 'Clear';
+    $('dlg-pitch').value = String(window.Rates.DEFAULT_PITCH);
+
     updateDialogPrice();
     $('area-dialog').showModal();
   }
@@ -331,17 +348,48 @@
     var sqm = window.Geo.areaOfPath(points);
     var service = $('dlg-service').value;
     var surface = $('dlg-surface').value;
-    var rate = window.Rates.rateFor(rateState, service, surface);
+    var confidence = $('dlg-confidence').value;
     var el = $('dlg-price');
 
-    if (rate === null) {
-      el.textContent = 'No rate set for ' + service + ' on ' + surface + ' — it will be added at €0 until you set one.';
-      el.classList.add('is-unpriced');
-    } else {
-      el.textContent = window.Geo.formatArea(sqm) + ' m² × €' + rate.toFixed(2) + ' = ' +
-                       window.Geo.formatMoney(sqm * rate);
-      el.classList.remove('is-unpriced');
+    // The pitch control only makes sense for a roof.
+    var roof = window.Rates.isRoof(surface);
+    $('dlg-pitch-row').hidden = !roof;
+
+    // Picking a roof surface while the label is still on a ground default means
+    // the label was never a deliberate choice — correct it rather than emitting
+    // a quote line that reads "Driveway — Roof cleaning".
+    var labelSel = $('dlg-label');
+    if (roof && (labelSel.value === 'Driveway' || labelSel.value === 'Patio')) {
+      labelSel.value = 'Roof';
     }
+
+    var pitch = roof ? parseFloat($('dlg-pitch').value) : 0;
+    var mult = roof ? window.Rates.pitchMultiplier(pitch) : 1;
+    var chargeSqm = sqm * mult;
+
+    var rate = window.Rates.rateFor(rateState, service, surface);
+    if (rate === null) {
+      el.textContent = 'No rate set for ' + service + ' on ' + surface +
+                       ' — it will be added at €0 until you set one.';
+      el.classList.add('is-unpriced');
+      return;
+    }
+
+    el.classList.remove('is-unpriced');
+    var lines = [];
+    if (roof) {
+      lines.push(window.Geo.formatArea(sqm) + ' m² footprint × ' + mult.toFixed(2) +
+                 ' (' + pitch + '°) = ' + window.Geo.formatArea(chargeSqm) + ' m² roof');
+    }
+    var base = chargeSqm * rate;
+    lines.push(window.Geo.formatArea(chargeSqm) + ' m² × €' + rate.toFixed(2) + ' = ' +
+               window.Geo.formatMoney(base));
+
+    var pct = window.Rates.contingencyFor(rateState, confidence);
+    if (pct > 0) {
+      lines.push('+ ' + pct + '% contingency = ' + window.Geo.formatMoney(base * (1 + pct / 100)));
+    }
+    el.textContent = lines.join('\n');
   }
 
   function commitArea() {
@@ -353,6 +401,10 @@
       perimeter: window.Geo.perimeterOfPath(points),
       service: $('dlg-service').value,
       surface: $('dlg-surface').value,
+      confidence: $('dlg-confidence').value,
+      pitch: window.Rates.isRoof($('dlg-surface').value)
+        ? parseFloat($('dlg-pitch').value)
+        : 0,
     });
     if (!job.address && lastSearch) {
       job.address = lastSearch.formattedAddress;
@@ -389,15 +441,30 @@
 
       var title = document.createElement('div');
       title.className = 'area-item-title';
-      title.textContent = line.label + ' — ' + window.Geo.formatArea(line.sqm) + ' m²';
+      title.textContent = line.label + ' — ' + window.Geo.formatArea(line.chargeSqm) + ' m²';
 
       var meta = document.createElement('div');
       meta.className = 'area-item-meta';
-      meta.textContent = line.service + ' · ' + line.surface +
+      meta.textContent = line.service + ' · ' + window.Rates.surfaceLabel(line.surface) +
         (line.rate !== null ? ' · €' + line.rate.toFixed(2) + '/m²' : '');
+
+      if (line.isRoof) {
+        meta.appendChild(document.createElement('br'));
+        meta.appendChild(document.createTextNode(
+          line.pitch + '° pitch · from ' + window.Geo.formatArea(line.sqm) + ' m² footprint'));
+      }
 
       main.appendChild(title);
       main.appendChild(meta);
+
+      if (line.uncertain) {
+        var flag = document.createElement('div');
+        flag.className = 'area-item-flag';
+        flag.textContent = line.contingencyPct > 0
+          ? line.confidence + ' · +' + line.contingencyPct + '% contingency'
+          : line.confidence + ' · no contingency applied';
+        main.appendChild(flag);
+      }
 
       var price = document.createElement('div');
       price.className = 'area-item-price' + (line.unpriced ? ' is-unpriced' : '');
@@ -439,7 +506,7 @@
 
     $('sheet-count').textContent = has
       ? job.areas.length + (job.areas.length === 1 ? ' area · ' : ' areas · ') +
-        window.Geo.formatArea(job.areas.reduce(function (s, a) { return s + a.sqm; }, 0)) + ' m²'
+        window.Geo.formatArea(q.lines.reduce(function (s, l) { return s + l.chargeSqm; }, 0)) + ' m²'
       : 'No areas yet';
     $('sheet-total').textContent = window.Geo.formatMoney(q.total);
   }
@@ -452,11 +519,22 @@
     out.push('');
 
     q.lines.forEach(function (l) {
-      out.push(l.label + ' — ' + l.surface + ' — ' + l.service);
-      out.push('  ' + window.Geo.formatArea(l.sqm) + ' m²' +
-        (l.rate !== null
-          ? ' @ €' + l.rate.toFixed(2) + '/m² = ' + window.Geo.formatMoney(l.total)
-          : ' — no rate set'));
+      // "Driveway — Instant softwash (Block paving)". Parenthesising the surface
+      // keeps it readable when a name contains its own dash or slash.
+      out.push(l.label + ' — ' + l.service + ' (' + window.Rates.surfaceLabel(l.surface) + ')');
+      if (l.isRoof) {
+        out.push('  ' + window.Geo.formatArea(l.sqm) + ' m² footprint at ' + l.pitch +
+                 '° = ' + window.Geo.formatArea(l.chargeSqm) + ' m² roof area');
+      }
+      if (l.rate === null) {
+        out.push('  ' + window.Geo.formatArea(l.chargeSqm) + ' m² — no rate set');
+        return;
+      }
+      out.push('  ' + window.Geo.formatArea(l.chargeSqm) + ' m² @ €' + l.rate.toFixed(2) +
+               '/m² = ' + window.Geo.formatMoney(l.contingency > 0 ? l.base : l.total));
+      if (l.contingency > 0) {
+        out.push('  + ' + l.contingencyPct + '% contingency = ' + window.Geo.formatMoney(l.total));
+      }
     });
 
     out.push('');
@@ -469,7 +547,19 @@
     }
     out.push('TOTAL      ' + window.Geo.formatMoney(q.total));
     out.push('');
-    out.push('Areas measured from aerial imagery — subject to on-site confirmation.');
+
+    // This goes out as a firm price without a site visit, so it states the basis
+    // of the measurement and what would change it — rather than inviting the
+    // customer to expect a visit that is not coming.
+    if (q.hasUncertain) {
+      out.push('Areas measured from current aerial imagery. Part of the area was');
+      out.push('obscured on the imagery and has been estimated, with a contingency');
+      out.push('included. Price holds unless the area on the day differs materially');
+      out.push('from the above.');
+    } else {
+      out.push('Areas measured from current aerial imagery. Price holds unless the');
+      out.push('area on the day differs materially from the above.');
+    }
     return out.join('\n');
   }
 
@@ -535,6 +625,23 @@
     });
     table.appendChild(tbody);
 
+    var grid = $('contingency-grid');
+    grid.innerHTML = '';
+    window.Rates.CONFIDENCE.forEach(function (level) {
+      var label = document.createElement('label');
+      label.textContent = level + ' (%)';
+      var input = document.createElement('input');
+      input.type = 'number';
+      input.inputMode = 'decimal';
+      input.min = '0';
+      input.step = '1';
+      input.dataset.confidence = level;
+      input.value = rateState.settings.contingency[level];
+      input.setAttribute('aria-label', 'Contingency percentage for ' + level);
+      label.appendChild(input);
+      grid.appendChild(label);
+    });
+
     $('set-min').value = rateState.settings.minCharge;
     $('set-vat').value = rateState.settings.vatRate;
     $('set-vat-on').checked = rateState.settings.vatEnabled;
@@ -554,6 +661,13 @@
       var val = raw === '' ? null : parseFloat(raw);
       rateState.rates[input.dataset.service][input.dataset.surface] =
         (val !== null && isFinite(val) && val >= 0) ? val : null;
+    });
+
+    var contInputs = $('contingency-grid').querySelectorAll('input');
+    Array.prototype.forEach.call(contInputs, function (input) {
+      var v = parseFloat(input.value);
+      rateState.settings.contingency[input.dataset.confidence] =
+        (isFinite(v) && v >= 0) ? v : 0;
     });
 
     var min = parseFloat($('set-min').value);
@@ -618,6 +732,8 @@
 
     $('dlg-service').addEventListener('change', updateDialogPrice);
     $('dlg-surface').addEventListener('change', updateDialogPrice);
+    $('dlg-confidence').addEventListener('change', updateDialogPrice);
+    $('dlg-pitch').addEventListener('change', updateDialogPrice);
 
     // event.submitter is unavailable in older Safari, so track the button directly.
     var dialogConfirmed = false;

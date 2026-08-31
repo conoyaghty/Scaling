@@ -326,6 +326,17 @@ body {
 .area-item-main { flex: 1; min-width: 0; }
 .area-item-title { font-weight: 650; font-size: 15px; }
 .area-item-meta { font-size: 12.5px; color: var(--text-dim); margin-top: 2px; }
+.area-item-flag {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 2px 7px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #f0d68a;
+  background: #3a2d0b;
+  border: 1px solid #6b5316;
+  border-radius: 5px;
+}
 .area-item-price { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .area-item-price.is-unpriced { color: var(--warn); font-size: 13px; font-weight: 600; }
 .remove-btn {
@@ -414,6 +425,13 @@ input[type=number] { -moz-appearance: textfield; }
 input[type=number]::-webkit-outer-spin-button,
 input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
+.settings-head {
+  margin: 20px 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
 .settings-grid { display: grid; gap: 12px; margin: 14px 0; }
 .settings-grid label { display: grid; gap: 5px; font-size: 14px; color: var(--text-dim); }
 .settings-grid input[type=number] {
@@ -467,6 +485,12 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin
   background-size: 5px 5px, 5px 5px;
   background-repeat: no-repeat;
 }
+.field-note {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-dim);
+  font-weight: 400;
+}
 .dialog-price {
   margin: 0 0 16px;
   padding: 11px 13px;
@@ -475,6 +499,8 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin
   background: var(--surface-2);
   border-radius: 9px;
   font-variant-numeric: tabular-nums;
+  white-space: pre-line;   /* the contingency line is a \n in the text */
+  line-height: 1.4;
 }
 .dialog-price.is-unpriced { color: var(--warn); font-size: 14px; font-weight: 600; }
 .dialog-actions { display: flex; gap: 8px; }

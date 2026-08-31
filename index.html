@@ -116,6 +116,15 @@
         <div class="rate-table-wrap">
           <table id="rate-table" class="rate-table"></table>
         </div>
+        <h3 class="settings-head">Contingency</h3>
+        <p class="muted small">
+          Added to a line you couldn't see clearly on the imagery. You quote these
+          without a site visit, so this is your cover for guessing under tree
+          canopy. Set all three to 0 to make the flag informational only.
+        </p>
+        <div id="contingency-grid" class="settings-grid"></div>
+
+        <h3 class="settings-head">Job settings</h3>
         <div class="settings-grid">
           <label>Minimum charge (€)
             <input id="set-min" type="number" inputmode="decimal" min="0" step="1">
@@ -147,6 +156,7 @@
       <select id="dlg-label">
         <option>Driveway</option>
         <option>Patio</option>
+        <option>Roof</option>
         <option>Path</option>
         <option>Front</option>
         <option>Rear</option>
@@ -162,6 +172,16 @@
 
     <label>Service
       <select id="dlg-service"></select>
+    </label>
+
+    <label id="dlg-pitch-row" hidden>Roof pitch
+      <select id="dlg-pitch"></select>
+      <span class="field-note">Imagery measures the footprint. Pitch converts it
+        to the actual roof area you're cleaning.</span>
+    </label>
+
+    <label>How clearly could you see it?
+      <select id="dlg-confidence"></select>
     </label>
 
     <p id="dlg-price" class="dialog-price"></p>

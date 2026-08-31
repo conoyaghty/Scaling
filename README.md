@@ -1,7 +1,7 @@
 # Area & Quote
 
-Measure a driveway, patio or path from aerial imagery by eircode, and price it
-off your rate card — on your phone, in about fifteen seconds.
+Measure a driveway, patio, path or roof from aerial imagery by eircode, and
+price it off your rate card — on your phone, in about fifteen seconds.
 
 Replaces the manual loop of: open Google Earth → find the property → trace the
 outline → read the sqm → look up the rate → do the arithmetic.
@@ -90,41 +90,104 @@ Keyboard shortcuts on desktop: `Backspace` undo, `Esc` clear, `Enter` save area.
 
 ### Rates
 
-The **Rates** tab holds a €/m² grid of service × surface, plus your minimum
-charge and VAT rate. **The shipped numbers are placeholders — put your real
-rates in.** Edits save to that browser.
+The **Rates** tab holds the €/m² grid of service × surface, plus contingency,
+minimum charge and VAT. Edits save to that browser; to change the defaults for
+every device edit `DEFAULT_RATES` in `js/rates.js`.
 
-Leave a cell blank for combinations you don't offer; the app flags them rather
-than quietly pricing them at zero.
+| | Concrete / stone / brick | Tarmac, block paving, resin, decking | Roof |
+| --- | --- | --- | --- |
+| Pressure washing | €3.50 | not offered | — |
+| Softwash — instant | €4.50 | €4.50 | — |
+| Softwash — progressive | €3.50 | €3.50 | — |
+| Roof cleaning | — | — | €7.50 flat tiles / €8.50 other |
 
-To change the defaults for every device rather than one browser, edit
-`DEFAULT_RATES` in `js/rates.js`.
+**Pressure washing is nulled out on tarmac, block paving, decking and resin**,
+on the reading that high pressure damages those and they go through softwash
+instead. If you do pressure wash them at some other rate, put it in — a blank
+cell means "not offered" and the app flags it rather than quietly pricing at
+zero.
+
+### Roofs are not their footprint
+
+Aerial imagery measures a roof's **footprint**. The surface you actually clean
+is larger by `1 / cos(pitch)`, which at Irish roof pitches is not a rounding
+error:
+
+| Pitch | Multiplier | 100 m² footprint becomes |
+| --- | --- | --- |
+| Flat | 1.00 | 100 m² |
+| 25° | 1.10 | 110 m² |
+| 30° | 1.15 | 115 m² |
+| **35° (typical)** | **1.22** | **122 m²** |
+| 45° | 1.41 | 141 m² |
+
+Pricing the footprint at 35° would under-quote by 22% — on a €8.50/m² roof
+that's €188 off a €1,038 job. So picking a roof surface reveals a **pitch**
+control, defaulting to 35°, and the quote prints both figures:
+
+```
+Roof — Roof — profiled / slate — Roof cleaning
+  100 m² footprint at 35° = 122 m² roof area
+  122 m² @ €8.50/m² = €1037.65
+```
+
+Pitch is a visual judgement from the ground or from Street View — the tool
+can't infer it from top-down imagery. If you're doing the roof survey in person
+anyway, this at least gets you a defensible number before you travel.
 
 ---
 
 ## Accuracy — read this before quoting off it
 
-The measurement is as good as your outline and the imagery. Specifically:
+These quotes go out as firm prices without anyone visiting the property, so the
+measurement has to stand on its own. What affects it:
 
 | Factor | Effect |
 | --- | --- |
 | Your tracing | Dominant source of error. A careless corner on a 20 m drive is worth several m². |
 | Imagery age | Google's Irish aerial imagery can be a few years old. A new driveway may not exist on it. |
-| Tree/hedge overhang | Obscures edges. You are guessing under the canopy — treat those jobs as site-visit only. |
+| Tree/hedge overhang | Obscures edges, so you are estimating under the canopy. Flag the area — see below. |
 | Georegistration | Imagery can be offset by up to a metre or so. Barely matters for area; matters more for a narrow path. |
-| Slope | This measures plan area, exactly as Google Earth does. A sloped drive has slightly more real surface — under 1% for anything you'd drive a car up. |
+| Slope | Measures plan area, exactly as Google Earth does. Under 1% for anything you'd drive a car up — but see *Roofs are not their footprint* above, where it is 22%. |
 
-It is reliable for quoting an open, clearly visible driveway or patio. It is not
-a substitute for a tape measure where the boundary is ambiguous, and the quote
-text it produces says so.
+### Handling what you can't see clearly
+
+Every saved area carries a confidence level: **Clear**, **Part obscured**, or
+**Mostly estimated**. This exists because there is no site visit to fall back
+on — an area you had to guess at under tree cover is real commercial risk, and
+it belongs on the record rather than buried inside one number.
+
+Flagging an area does two things:
+
+- **Marks the line** in the job list, so you can see at a glance which parts of
+  a quote are soft before you send it.
+- **Adds a contingency %**, set per level on the Rates tab. The shipped values
+  (0% / 10% / 20%) are placeholders like the rates. Set all three to zero if
+  you would rather the flag stayed informational and priced the risk yourself.
+
+The contingency prints as its own line rather than being folded into the rate,
+so the customer sees an honest breakdown and you never have to explain an odd
+€/m². Confidence resets to *Clear* for every new area — inheriting it from the
+last one would quietly add money to a line you could see perfectly well.
+
+### What the quote says
+
+The wording adapts to what you flagged. A fully clear job reads:
+
+> Areas measured from current aerial imagery. Price holds unless the area on the
+> day differs materially from the above.
+
+A job containing an obscured area also states that part of it was estimated and
+carries a contingency. Neither version promises an on-site confirmation — that
+would invite a visit that isn't coming and weaken the price you sent.
 
 ---
 
 ## Testing
 
 ```bash
-npm test        # 29 checks — eircode parsing, geodesic area, pricing, rounding
-npm run test:ui # 56 checks — full flow in a real browser against a mocked Maps API
+npm test        # 54 checks — eircode parsing, geodesic area, rate card, pitch, pricing
+npm run test:ui # 85 checks — full flow in a real browser against a mocked Maps API
 ```
 
 `npm run test:ui` needs Playwright's Chromium (`npx playwright install chromium`),
@@ -133,7 +196,7 @@ or set `CHROMIUM_PATH` to an existing Chromium binary.
 The flow test drives the genuine measure → save → quote path, and asserts a
 20 m × 6 m rectangle reads 120 m² and prices correctly through to the VAT line.
 
-Two things the tests pin down deliberately, because both were live bugs:
+Three things the tests pin down deliberately, because all three were live bugs:
 
 - **Printed lines must add up.** Line totals are rounded to cents at
   calculation, and the subtotal is the sum of the rounded lines — so a customer
@@ -142,6 +205,9 @@ Two things the tests pin down deliberately, because both were live bugs:
 - **`[hidden]` must beat class rules.** The UA's `[hidden] { display: none }` is
   low specificity, so `.quote-row { display: flex }` silently overrode it and
   the VAT row showed even with VAT switched off.
+- **Confidence must not be sticky.** It inherited from the previous area, which
+  silently added contingency to a line you could see perfectly well. It now
+  resets to *Clear* every time the dialog opens.
 
 ---
 
