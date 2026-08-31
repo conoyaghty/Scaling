@@ -8,17 +8,23 @@
 (function (global) {
   'use strict';
 
-  var SURFACES = [
+  var GROUND_SURFACES = [
     'Concrete',
-    'Slab / natural stone',
-    'Brick',
-    'Tarmac',
     'Block paving',
+    'Tarmac',
+    'Limestone',
+    'Sandstone',
+    'Granite',
+    'Travertine',
     'Resin',
+    'Porcelain',
     'Decking',
-    'Flat tiles (roof)',
-    'Profiled / slate (roof)',
   ];
+
+  /* Priced on sloped area rather than footprint — see PITCHES. */
+  var ROOF_SURFACES = ['Flat tiles (roof)', 'Profiled / slate (roof)'];
+
+  var SURFACES = GROUND_SURFACES.concat(ROOF_SURFACES);
 
   var SERVICES = [
     'Pressure washing',
@@ -26,9 +32,6 @@
     'Progressive softwash',
     'Roof cleaning',
   ];
-
-  /* Priced on sloped area rather than footprint — see PITCHES. */
-  var ROOF_SURFACES = ['Flat tiles (roof)', 'Profiled / slate (roof)'];
 
   function isRoof(surface) {
     return ROOF_SURFACES.indexOf(surface) !== -1;
@@ -43,58 +46,55 @@
   }
 
   /*
-   * €/m². null = not offered on that surface.
-   *
-   * Pressure washing is €3.50 as standard, and €4.00 on tarmac, block paving,
-   * resin and decking. Softwash is priced on any ground surface; roofs are
-   * their own service.
+   * The rate card, stated as rules rather than as a 4 × 12 grid of literals —
+   * one place to change, and no chance of a cell being missed when a surface is
+   * added. Every combination not set below is null, meaning "not offered": the
+   * app flags such a line on the quote rather than pricing it at zero.
    */
-  var DEFAULT_RATES = {
-    'Pressure washing': {
-      'Concrete': 3.50,
-      'Slab / natural stone': 3.50,
-      'Brick': 3.50,
-      'Tarmac': 4.00,
-      'Block paving': 4.00,
-      'Resin': 4.00,
-      'Decking': 4.00,
-      'Flat tiles (roof)': null,
-      'Profiled / slate (roof)': null,
-    },
-    'Instant softwash': {
-      'Concrete': 4.50,
-      'Slab / natural stone': 4.50,
-      'Brick': 4.50,
-      'Tarmac': 4.50,
-      'Block paving': 4.50,
-      'Resin': 4.50,
-      'Decking': 4.50,
-      'Flat tiles (roof)': null,
-      'Profiled / slate (roof)': null,
-    },
-    'Progressive softwash': {
-      'Concrete': 3.50,
-      'Slab / natural stone': 3.50,
-      'Brick': 3.50,
-      'Tarmac': 3.50,
-      'Block paving': 3.50,
-      'Resin': 3.50,
-      'Decking': 3.50,
-      'Flat tiles (roof)': null,
-      'Profiled / slate (roof)': null,
-    },
-    'Roof cleaning': {
-      'Concrete': null,
-      'Slab / natural stone': null,
-      'Brick': null,
-      'Tarmac': null,
-      'Block paving': null,
-      'Resin': null,
-      'Decking': null,
-      'Flat tiles (roof)': 7.50,
-      'Profiled / slate (roof)': 8.50,
-    },
+  var PRESSURE_WASH_STANDARD = 3.50;
+  var PRESSURE_WASH_PREMIUM = 4.00;
+
+  /* Surfaces that take the higher pressure-washing rate. */
+  var PRESSURE_WASH_PREMIUM_SURFACES = [
+    'Tarmac',
+    'Block paving',
+    'Resin',
+    'Decking',
+    'Limestone',
+    'Travertine',
+  ];
+
+  var INSTANT_SOFTWASH = 4.50;
+  var PROGRESSIVE_SOFTWASH = 3.50;
+  var ROOF_CLEANING = {
+    'Flat tiles (roof)': 7.50,
+    'Profiled / slate (roof)': 8.50,
   };
+
+  function buildDefaultRates() {
+    var rates = {};
+    SERVICES.forEach(function (svc) {
+      rates[svc] = {};
+      SURFACES.forEach(function (surf) { rates[svc][surf] = null; });
+    });
+
+    GROUND_SURFACES.forEach(function (surf) {
+      rates['Pressure washing'][surf] =
+        PRESSURE_WASH_PREMIUM_SURFACES.indexOf(surf) !== -1
+          ? PRESSURE_WASH_PREMIUM
+          : PRESSURE_WASH_STANDARD;
+      rates['Instant softwash'][surf] = INSTANT_SOFTWASH;
+      rates['Progressive softwash'][surf] = PROGRESSIVE_SOFTWASH;
+    });
+
+    Object.keys(ROOF_CLEANING).forEach(function (surf) {
+      rates['Roof cleaning'][surf] = ROOF_CLEANING[surf];
+    });
+
+    return rates;
+  }
+
+  var DEFAULT_RATES = buildDefaultRates();
 
   /*
    * Aerial imagery measures a roof's FOOTPRINT. The actual surface you clean is
@@ -319,6 +319,7 @@
     SURFACES: SURFACES,
     SERVICES: SERVICES,
     CONFIDENCE: CONFIDENCE,
+    GROUND_SURFACES: GROUND_SURFACES,
     ROOF_SURFACES: ROOF_SURFACES,
     surfaceLabel: surfaceLabel,
     PITCHES: PITCHES,

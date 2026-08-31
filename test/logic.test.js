@@ -209,11 +209,11 @@ check('prices a single area off the rate card', () => {
 check('sums multiple areas in one job', () => {
   const s = JSON.parse(JSON.stringify(base));
   s.rates['Instant softwash']['Block paving'] = 7.5;
-  s.rates['Pressure washing']['Slab / natural stone'] = 4.0;
+  s.rates['Pressure washing']['Sandstone'] = 4.0;
   s.settings = { minCharge: 0, vatRate: 0, vatEnabled: false };
   const q = Rates.quote(s, [
     { label: 'Driveway', sqm: 100, service: 'Instant softwash', surface: 'Block paving' },
-    { label: 'Patio', sqm: 25, service: 'Pressure washing', surface: 'Slab / natural stone' },
+    { label: 'Patio', sqm: 25, service: 'Pressure washing', surface: 'Sandstone' },
   ]);
   assert.strictEqual(q.subtotal, 850);   // 750 + 100
   assert.strictEqual(q.lines.length, 2);
@@ -450,15 +450,45 @@ check('settings saved before contingency existed still get defaults', () => {
 
 console.log('\nRate card as quoted');
 
-check('pressure washing is €3.50 on the surfaces it suits', () => {
-  ['Concrete', 'Slab / natural stone', 'Brick'].forEach((surf) => {
+check('every surface the business works with is offered', () => {
+  const expected = [
+    'Concrete', 'Block paving', 'Tarmac', 'Limestone', 'Sandstone',
+    'Granite', 'Travertine', 'Resin', 'Porcelain', 'Decking',
+  ];
+  // Joined rather than deepStrictEqual: these arrays come from the vm sandbox,
+  // so their Array prototype is a different realm's and reference-equality fails.
+  assert.strictEqual(Rates.GROUND_SURFACES.join('|'), expected.join('|'));
+  assert.strictEqual(Rates.ROOF_SURFACES.join('|'), 'Flat tiles (roof)|Profiled / slate (roof)');
+  assert.strictEqual(Rates.SURFACES.length, 12);
+});
+
+check('pressure washing is €3.50 standard', () => {
+  ['Concrete', 'Sandstone', 'Granite', 'Porcelain'].forEach((surf) => {
     assert.strictEqual(Rates.rateFor(base, 'Pressure washing', surf), 3.50, surf);
   });
 });
 
-check('pressure washing is €4.00 on tarmac, block paving, resin and decking', () => {
-  ['Tarmac', 'Block paving', 'Resin', 'Decking'].forEach((surf) => {
-    assert.strictEqual(Rates.rateFor(base, 'Pressure washing', surf), 4.00, surf);
+check('pressure washing is €4.00 on the premium surfaces', () => {
+  // tarmac, block paving, resin, decking + the two soft stones
+  ['Tarmac', 'Block paving', 'Resin', 'Decking', 'Limestone', 'Travertine']
+    .forEach((surf) => {
+      assert.strictEqual(Rates.rateFor(base, 'Pressure washing', surf), 4.00, surf);
+    });
+});
+
+check('every ground surface has all three ground services priced', () => {
+  Rates.GROUND_SURFACES.forEach((surf) => {
+    ['Pressure washing', 'Instant softwash', 'Progressive softwash'].forEach((svc) => {
+      const r = Rates.rateFor(base, svc, surf);
+      assert.ok(r !== null && r > 0, `${svc} on ${surf} is unpriced`);
+    });
+  });
+});
+
+check('no surface is priced at both €3.50 and €4.00 by mistake', () => {
+  Rates.GROUND_SURFACES.forEach((surf) => {
+    const r = Rates.rateFor(base, 'Pressure washing', surf);
+    assert.ok(r === 3.50 || r === 4.00, `${surf} is €${r}`);
   });
 });
 
@@ -492,14 +522,14 @@ check('"No pitch" is offered and prices the bare footprint', () => {
 });
 
 check('softwash instant is €4.50 on every ground surface', () => {
-  ['Concrete', 'Slab / natural stone', 'Brick', 'Tarmac', 'Block paving', 'Resin', 'Decking']
+  ['Concrete', 'Sandstone', 'Granite', 'Porcelain', 'Tarmac', 'Block paving', 'Resin', 'Decking']
     .forEach((surf) => {
       assert.strictEqual(Rates.rateFor(base, 'Instant softwash', surf), 4.50, surf);
     });
 });
 
 check('softwash progressive is €3.50 on every ground surface', () => {
-  ['Concrete', 'Slab / natural stone', 'Brick', 'Tarmac', 'Block paving', 'Resin', 'Decking']
+  ['Concrete', 'Sandstone', 'Granite', 'Porcelain', 'Tarmac', 'Block paving', 'Resin', 'Decking']
     .forEach((surf) => {
       assert.strictEqual(Rates.rateFor(base, 'Progressive softwash', surf), 3.50, surf);
     });

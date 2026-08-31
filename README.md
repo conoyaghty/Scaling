@@ -94,7 +94,7 @@ The **Rates** tab holds the €/m² grid of service × surface, plus contingency
 minimum charge and VAT. Edits save to that browser; to change the defaults for
 every device edit `DEFAULT_RATES` in `js/rates.js`.
 
-| | Concrete / stone / brick | Tarmac, block paving, resin, decking | Roof |
+| | Concrete, sandstone, granite, porcelain | Tarmac, block paving, resin, decking, limestone, travertine | Roof |
 | --- | --- | --- | --- |
 | Pressure washing | €3.50 | €4.00 | — |
 | Instant softwash | €4.50 | €4.50 | — |
@@ -103,6 +103,11 @@ every device edit `DEFAULT_RATES` in `js/rates.js`.
 
 A blank cell means "not offered" — the app flags such a line on the quote
 rather than quietly pricing it at zero.
+
+The card is defined as **rules, not a 4 × 12 grid of literals**, at the top of
+`js/rates.js`: a standard pressure-washing rate, a list of surfaces that take
+the premium one, and a flat rate per softwash. Adding a surface is one line in
+`GROUND_SURFACES`, and no cell can be missed.
 
 ### Roofs are not their footprint
 
@@ -187,7 +192,7 @@ would invite a visit that isn't coming and weaken the price you sent.
 ## Testing
 
 ```bash
-npm test        # 56 checks — eircode parsing, geodesic area, rate card, pitch, pricing
+npm test        # 59 checks — eircode parsing, geodesic area, rate card, pitch, pricing
 npm run test:ui # 87 checks — full flow in a real browser against a mocked Maps API
 ```
 

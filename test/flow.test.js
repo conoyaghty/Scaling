@@ -190,7 +190,7 @@ function serve() {
       el.value = v;
     };
     set('Instant softwash', 'Block paving', '7.50');
-    set('Pressure washing', 'Slab / natural stone', '4.00');
+    set('Pressure washing', 'Sandstone', '4.00');
     document.getElementById('set-min').value = '0';
     document.getElementById('set-vat').value = '13.5';
     document.getElementById('set-vat-on').checked = true;
@@ -229,7 +229,7 @@ function serve() {
   await page.click('#save-area');
   await page.waitForTimeout(120);
   ok('second area defaults the label to Patio', (await page.inputValue('#dlg-label')) === 'Patio');
-  await page.selectOption('#dlg-surface', 'Slab / natural stone');
+  await page.selectOption('#dlg-surface', 'Sandstone');
   await page.selectOption('#dlg-service', 'Pressure washing');
   await page.click('#dlg-ok');
   await page.waitForTimeout(150);
