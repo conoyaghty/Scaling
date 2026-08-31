@@ -96,16 +96,13 @@ every device edit `DEFAULT_RATES` in `js/rates.js`.
 
 | | Concrete / stone / brick | Tarmac, block paving, resin, decking | Roof |
 | --- | --- | --- | --- |
-| Pressure washing | €3.50 | not offered | — |
-| Softwash — instant | €4.50 | €4.50 | — |
-| Softwash — progressive | €3.50 | €3.50 | — |
+| Pressure washing | €3.50 | €4.00 | — |
+| Instant softwash | €4.50 | €4.50 | — |
+| Progressive softwash | €3.50 | €3.50 | — |
 | Roof cleaning | — | — | €7.50 flat tiles / €8.50 other |
 
-**Pressure washing is nulled out on tarmac, block paving, decking and resin**,
-on the reading that high pressure damages those and they go through softwash
-instead. If you do pressure wash them at some other rate, put it in — a blank
-cell means "not offered" and the app flags it rather than quietly pricing at
-zero.
+A blank cell means "not offered" — the app flags such a line on the quote
+rather than quietly pricing it at zero.
 
 ### Roofs are not their footprint
 
@@ -115,7 +112,7 @@ error:
 
 | Pitch | Multiplier | 100 m² footprint becomes |
 | --- | --- | --- |
-| Flat | 1.00 | 100 m² |
+| **No pitch** | 1.00 | 100 m² |
 | 25° | 1.10 | 110 m² |
 | 30° | 1.15 | 115 m² |
 | **35° (typical)** | **1.22** | **122 m²** |
@@ -123,12 +120,15 @@ error:
 
 Pricing the footprint at 35° would under-quote by 22% — on a €8.50/m² roof
 that's €188 off a €1,038 job. So picking a roof surface reveals a **pitch**
-control, defaulting to 35°, and the quote prints both figures:
+control. It defaults to 35° so a pitched roof can't be under-quoted by
+accident, and the first option is **No pitch — footprint only** for a flat roof
+or when you'd rather price the plain measurement. At no pitch the conversion
+line is dropped entirely; otherwise the quote prints both figures:
 
 ```
-Roof — Roof — profiled / slate — Roof cleaning
-  100 m² footprint at 35° = 122 m² roof area
-  122 m² @ €8.50/m² = €1037.65
+Roof — Roof cleaning (Profiled / slate)
+  100.0 m² footprint at 35° = 122 m² roof area
+  122 m² @ €8.50/m² = €1037.66
 ```
 
 Pitch is a visual judgement from the ground or from Street View — the tool
@@ -161,9 +161,10 @@ Flagging an area does two things:
 
 - **Marks the line** in the job list, so you can see at a glance which parts of
   a quote are soft before you send it.
-- **Adds a contingency %**, set per level on the Rates tab. The shipped values
-  (0% / 10% / 20%) are placeholders like the rates. Set all three to zero if
-  you would rather the flag stayed informational and priced the risk yourself.
+- **Optionally adds a contingency %**, set per level on the Rates tab. This is
+  **off by default (0% everywhere)** — small measuring error is acceptable, so
+  the flag is a note to yourself unless you deliberately want it to move the
+  price. Put figures in if you'd rather it did.
 
 The contingency prints as its own line rather than being folded into the rate,
 so the customer sees an honest breakdown and you never have to explain an odd
@@ -186,8 +187,8 @@ would invite a visit that isn't coming and weaken the price you sent.
 ## Testing
 
 ```bash
-npm test        # 54 checks — eircode parsing, geodesic area, rate card, pitch, pricing
-npm run test:ui # 85 checks — full flow in a real browser against a mocked Maps API
+npm test        # 56 checks — eircode parsing, geodesic area, rate card, pitch, pricing
+npm run test:ui # 87 checks — full flow in a real browser against a mocked Maps API
 ```
 
 `npm run test:ui` needs Playwright's Chromium (`npx playwright install chromium`),

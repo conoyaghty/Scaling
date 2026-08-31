@@ -456,10 +456,39 @@ check('pressure washing is €3.50 on the surfaces it suits', () => {
   });
 });
 
-check('pressure washing is not offered on tarmac, block paving, decking or resin', () => {
-  ['Tarmac', 'Block paving', 'Decking', 'Resin'].forEach((surf) => {
-    assert.strictEqual(Rates.rateFor(base, 'Pressure washing', surf), null, surf);
+check('pressure washing is €4.00 on tarmac, block paving, resin and decking', () => {
+  ['Tarmac', 'Block paving', 'Resin', 'Decking'].forEach((surf) => {
+    assert.strictEqual(Rates.rateFor(base, 'Pressure washing', surf), 4.00, surf);
   });
+});
+
+check('contingency is off by default — the flag does not move the price', () => {
+  Rates.CONFIDENCE.forEach((level) => {
+    assert.strictEqual(Rates.DEFAULT_SETTINGS.contingency[level], 0, level);
+  });
+  const q = Rates.quote(base, [
+    { label: 'Drive', sqm: 100, service: 'Pressure washing', surface: 'Tarmac',
+      confidence: 'Mostly estimated' },
+  ]);
+  assert.strictEqual(q.contingencyTotal, 0);
+  assert.strictEqual(q.lines[0].total, 400, 'plain 100 × €4.00');
+  assert.strictEqual(q.hasUncertain, true, 'still flagged for your own reference');
+});
+
+check('"No pitch" is offered and prices the bare footprint', () => {
+  const zero = Rates.PITCHES[0];
+  assert.strictEqual(zero.deg, 0);
+  assert.ok(/no pitch/i.test(zero.label), `first option reads "${zero.label}"`);
+  assert.strictEqual(Rates.pitchMultiplier(zero.deg), 1);
+
+  const s = JSON.parse(JSON.stringify(base));
+  s.settings = { minCharge: 0, vatRate: 0, vatEnabled: false, contingency: { 'Clear': 0 } };
+  const q = Rates.quote(s, [
+    { label: 'Roof', sqm: 100, service: 'Roof cleaning',
+      surface: 'Profiled / slate (roof)', pitch: 0 },
+  ]);
+  assert.strictEqual(q.lines[0].chargeSqm, 100, 'no uplift at all');
+  assert.strictEqual(q.total, 850);
 });
 
 check('softwash instant is €4.50 on every ground surface', () => {

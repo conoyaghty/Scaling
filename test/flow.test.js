@@ -418,10 +418,15 @@ function serve() {
   ok('preview prices the roof area, not the footprint',
     roofPreview.includes('1037') || roofPreview.includes('1038'), roofPreview);
 
+  ok('a "no pitch" option is offered first in the list',
+    /no pitch/i.test(await page.locator('#dlg-pitch option').first().textContent()),
+    await page.locator('#dlg-pitch option').first().textContent());
+
   await page.selectOption('#dlg-pitch', '0');
   await page.waitForTimeout(80);
-  ok('flat pitch prices the footprint exactly',
-    (await page.textContent('#dlg-price')).includes('850'), await page.textContent('#dlg-price'));
+  const noPitch = await page.textContent('#dlg-price');
+  ok('no pitch prices the bare footprint', noPitch.includes('850'), noPitch);
+  ok('no pitch shows no conversion line', !noPitch.includes('footprint ×'), noPitch);
 
   await page.selectOption('#dlg-pitch', '35');
   await page.waitForTimeout(80);

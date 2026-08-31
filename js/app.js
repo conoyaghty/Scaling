@@ -377,7 +377,8 @@
 
     el.classList.remove('is-unpriced');
     var lines = [];
-    if (roof) {
+    // Only worth showing when the pitch actually changes the number.
+    if (roof && pitch > 0) {
       lines.push(window.Geo.formatArea(sqm) + ' m² footprint × ' + mult.toFixed(2) +
                  ' (' + pitch + '°) = ' + window.Geo.formatArea(chargeSqm) + ' m² roof');
     }
@@ -448,7 +449,7 @@
       meta.textContent = line.service + ' · ' + window.Rates.surfaceLabel(line.surface) +
         (line.rate !== null ? ' · €' + line.rate.toFixed(2) + '/m²' : '');
 
-      if (line.isRoof) {
+      if (line.isRoof && line.pitch > 0) {
         meta.appendChild(document.createElement('br'));
         meta.appendChild(document.createTextNode(
           line.pitch + '° pitch · from ' + window.Geo.formatArea(line.sqm) + ' m² footprint'));
@@ -522,7 +523,7 @@
       // "Driveway — Instant softwash (Block paving)". Parenthesising the surface
       // keeps it readable when a name contains its own dash or slash.
       out.push(l.label + ' — ' + l.service + ' (' + window.Rates.surfaceLabel(l.surface) + ')');
-      if (l.isRoof) {
+      if (l.isRoof && l.pitch > 0) {
         out.push('  ' + window.Geo.formatArea(l.sqm) + ' m² footprint at ' + l.pitch +
                  '° = ' + window.Geo.formatArea(l.chargeSqm) + ' m² roof area');
       }

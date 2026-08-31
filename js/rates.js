@@ -45,20 +45,19 @@
   /*
    * €/m². null = not offered on that surface.
    *
-   * Pressure washing is €3.50 on everything EXCEPT tarmac, block paving,
-   * decking and resin — high pressure damages those, so they are nulled here
-   * and go through softwash instead. Softwash is priced on any ground surface;
-   * roofs are their own service.
+   * Pressure washing is €3.50 as standard, and €4.00 on tarmac, block paving,
+   * resin and decking. Softwash is priced on any ground surface; roofs are
+   * their own service.
    */
   var DEFAULT_RATES = {
     'Pressure washing': {
       'Concrete': 3.50,
       'Slab / natural stone': 3.50,
       'Brick': 3.50,
-      'Tarmac': null,
-      'Block paving': null,
-      'Resin': null,
-      'Decking': null,
+      'Tarmac': 4.00,
+      'Block paving': 4.00,
+      'Resin': 4.00,
+      'Decking': 4.00,
       'Flat tiles (roof)': null,
       'Profiled / slate (roof)': null,
     },
@@ -104,7 +103,7 @@
    * footprint would under-quote by that much.
    */
   var PITCHES = [
-    { label: 'Flat / near flat', deg: 0 },
+    { label: 'No pitch — footprint only', deg: 0 },
     { label: '15° shallow', deg: 15 },
     { label: '20°', deg: 20 },
     { label: '25°', deg: 25 },
@@ -142,12 +141,13 @@
     minCharge: 120,     // € — job floor, applied to the ex-VAT subtotal
     vatRate: 13.5,      // % — Irish reduced rate typically applies to these services
     vatEnabled: true,
-    // ⚠️ Placeholders. % added to a line you could not see clearly. Set every
-    // level to 0 to keep the flag purely informational.
+    // % added to a line you could not see clearly on the imagery. Off by
+    // default: small measuring error is acceptable, so the confidence level is
+    // a note to yourself unless you deliberately want it to move the price.
     contingency: {
       'Clear': 0,
-      'Part obscured': 10,
-      'Mostly estimated': 20,
+      'Part obscured': 0,
+      'Mostly estimated': 0,
     },
   };
 
