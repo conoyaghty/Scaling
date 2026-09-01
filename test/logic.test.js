@@ -453,13 +453,13 @@ console.log('\nRate card as quoted');
 check('every surface the business works with is offered', () => {
   const expected = [
     'Concrete', 'Block paving', 'Tarmac', 'Limestone', 'Sandstone',
-    'Granite', 'Travertine', 'Resin', 'Porcelain', 'Decking',
+    'Granite', 'Resin', 'Porcelain', 'Decking',
   ];
   // Joined rather than deepStrictEqual: these arrays come from the vm sandbox,
   // so their Array prototype is a different realm's and reference-equality fails.
   assert.strictEqual(Rates.GROUND_SURFACES.join('|'), expected.join('|'));
   assert.strictEqual(Rates.ROOF_SURFACES.join('|'), 'Flat tiles (roof)|Profiled / slate (roof)');
-  assert.strictEqual(Rates.SURFACES.length, 12);
+  assert.strictEqual(Rates.SURFACES.length, 11);
 });
 
 check('pressure washing is €3.50 outside the premium band', () => {
@@ -468,20 +468,9 @@ check('pressure washing is €3.50 outside the premium band', () => {
   });
 });
 
-check('travertine is progressive treatment only', () => {
-  // Facade stone — pressure washing and instant softwash are not offered on it.
-  assert.strictEqual(Rates.rateFor(base, 'Progressive softwash', 'Travertine'), 3.50);
-  assert.strictEqual(Rates.rateFor(base, 'Pressure washing', 'Travertine'), null);
-  assert.strictEqual(Rates.rateFor(base, 'Instant softwash', 'Travertine'), null);
-  assert.strictEqual(Rates.rateFor(base, 'Roof cleaning', 'Travertine'), null);
-});
-
-check('picking an unavailable service on travertine is flagged, not zero-priced', () => {
-  const q = Rates.quote(base, [
-    { label: 'Facade', sqm: 40, service: 'Pressure washing', surface: 'Travertine' },
-  ]);
-  assert.strictEqual(q.hasUnpriced, true);
-  assert.strictEqual(q.lines[0].rate, null);
+check('no facade-only surface remains — this tool cannot measure a wall', () => {
+  // A facade is vertical; tracing it top-down gives its run, not its area.
+  assert.strictEqual(Rates.SURFACES.indexOf('Travertine'), -1);
 });
 
 check('pressure washing is €4.00 on block paving, tarmac, limestone, resin, decking', () => {
@@ -494,15 +483,9 @@ check('pressure washing is €4.00 on block paving, tarmac, limestone, resin, de
   assert.strictEqual(premium.join('|'), 'Block paving|Tarmac|Limestone|Resin|Decking');
 });
 
-check('every ground surface is priced for the services it is offered on', () => {
-  const progressiveOnly = ['Travertine'];
+check('every ground surface has all three ground services priced', () => {
   Rates.GROUND_SURFACES.forEach((surf) => {
-    // Progressive softwash applies to every ground surface without exception.
-    const p = Rates.rateFor(base, 'Progressive softwash', surf);
-    assert.ok(p !== null && p > 0, `Progressive softwash on ${surf} is unpriced`);
-
-    if (progressiveOnly.indexOf(surf) !== -1) return;
-    ['Pressure washing', 'Instant softwash'].forEach((svc) => {
+    ['Pressure washing', 'Instant softwash', 'Progressive softwash'].forEach((svc) => {
       const r = Rates.rateFor(base, svc, surf);
       assert.ok(r !== null && r > 0, `${svc} on ${surf} is unpriced`);
     });
@@ -512,7 +495,6 @@ check('every ground surface is priced for the services it is offered on', () => 
 check('every pressure-washing rate is either €3.50 or €4.00', () => {
   Rates.GROUND_SURFACES.forEach((surf) => {
     const r = Rates.rateFor(base, 'Pressure washing', surf);
-    if (r === null) return;          // not offered on this surface at all
     assert.ok(r === 3.50 || r === 4.00, `${surf} is €${r}`);
   });
 });

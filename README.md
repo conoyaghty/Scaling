@@ -101,19 +101,15 @@ every device edit `DEFAULT_RATES` in `js/rates.js`.
 | Progressive softwash | €3.50 | €3.50 | — |
 | Roof cleaning | — | — | €7.50 flat tiles / €8.50 other |
 
-"Everything else" is concrete, sandstone, granite and porcelain.
+"Everything else" is concrete, sandstone, granite and porcelain. A blank cell
+means "not offered" — the app flags such a line on the quote rather than
+quietly pricing it at zero.
 
-**Travertine is progressive treatment only** (€3.50) — it is facade stone, so
-pressure washing and instant softwash are not offered on it. A blank cell means
-"not offered": the app flags such a line on the quote rather than quietly
-pricing it at zero.
+**Ground and roof surfaces only.** Facade stone (travertine and the like) is
+deliberately absent: a facade is vertical, so tracing it on top-down imagery
+gives the wall's horizontal run, not its area. Facade work is quoted in person.
 
-> ⚠️ **A facade cannot be measured from aerial imagery.** It is a vertical
-> surface, so tracing it top-down gives you the wall's horizontal run, not its
-> area. Travertine is priced here but not yet measurable — see *Where it could
-> go next*.
-
-The card is defined as **rules, not a 4 × 12 grid of literals**, at the top of
+The card is defined as **rules, not a 4 × 11 grid of literals**, at the top of
 `js/rates.js`: a standard pressure-washing rate, a list of surfaces that take
 the premium one, and a flat rate per softwash. Adding a surface is one line in
 `GROUND_SURFACES`, and no cell can be missed.
@@ -201,7 +197,7 @@ would invite a visit that isn't coming and weaken the price you sent.
 ## Testing
 
 ```bash
-npm test        # 59 checks — eircode parsing, geodesic area, rate card, pitch, pricing
+npm test        # 60 checks — eircode parsing, geodesic area, rate card, pitch, pricing
 npm run test:ui # 87 checks — full flow in a real browser against a mocked Maps API
 ```
 

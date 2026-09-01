@@ -15,7 +15,6 @@
     'Limestone',
     'Sandstone',
     'Granite',
-    'Travertine',
     'Resin',
     'Porcelain',
     'Decking',
@@ -46,7 +45,7 @@
   }
 
   /*
-   * The rate card, stated as rules rather than as a 4 × 12 grid of literals —
+   * The rate card, stated as rules rather than as a 4 × 11 grid of literals —
    * one place to change, and no chance of a cell being missed when a surface is
    * added. Every combination not set below is null, meaning "not offered": the
    * app flags such a line on the quote rather than pricing it at zero.
@@ -65,12 +64,6 @@
 
   var INSTANT_SOFTWASH = 4.50;
   var PROGRESSIVE_SOFTWASH = 3.50;
-
-  /*
-   * Facade stone: only ever gets the progressive treatment, so pressure washing
-   * and instant softwash stay null for these and the app flags them if picked.
-   */
-  var PROGRESSIVE_ONLY_SURFACES = ['Travertine'];
   var ROOF_CLEANING = {
     'Flat tiles (roof)': 7.50,
     'Profiled / slate (roof)': 8.50,
@@ -85,8 +78,6 @@
 
     GROUND_SURFACES.forEach(function (surf) {
       rates['Progressive softwash'][surf] = PROGRESSIVE_SOFTWASH;
-      if (PROGRESSIVE_ONLY_SURFACES.indexOf(surf) !== -1) return;
-
       rates['Pressure washing'][surf] =
         PRESSURE_WASH_PREMIUM_SURFACES.indexOf(surf) !== -1
           ? PRESSURE_WASH_PREMIUM
