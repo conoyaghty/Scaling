@@ -65,6 +65,12 @@
 
   var INSTANT_SOFTWASH = 4.50;
   var PROGRESSIVE_SOFTWASH = 3.50;
+
+  /*
+   * Facade stone: only ever gets the progressive treatment, so pressure washing
+   * and instant softwash stay null for these and the app flags them if picked.
+   */
+  var PROGRESSIVE_ONLY_SURFACES = ['Travertine'];
   var ROOF_CLEANING = {
     'Flat tiles (roof)': 7.50,
     'Profiled / slate (roof)': 8.50,
@@ -78,12 +84,14 @@
     });
 
     GROUND_SURFACES.forEach(function (surf) {
+      rates['Progressive softwash'][surf] = PROGRESSIVE_SOFTWASH;
+      if (PROGRESSIVE_ONLY_SURFACES.indexOf(surf) !== -1) return;
+
       rates['Pressure washing'][surf] =
         PRESSURE_WASH_PREMIUM_SURFACES.indexOf(surf) !== -1
           ? PRESSURE_WASH_PREMIUM
           : PRESSURE_WASH_STANDARD;
       rates['Instant softwash'][surf] = INSTANT_SOFTWASH;
-      rates['Progressive softwash'][surf] = PROGRESSIVE_SOFTWASH;
     });
 
     Object.keys(ROOF_CLEANING).forEach(function (surf) {
