@@ -462,18 +462,21 @@ check('every surface the business works with is offered', () => {
   assert.strictEqual(Rates.SURFACES.length, 12);
 });
 
-check('pressure washing is €3.50 standard', () => {
-  ['Concrete', 'Sandstone', 'Granite', 'Porcelain'].forEach((surf) => {
-    assert.strictEqual(Rates.rateFor(base, 'Pressure washing', surf), 3.50, surf);
-  });
+check('pressure washing is €3.50 on everything but the three premium surfaces', () => {
+  ['Concrete', 'Block paving', 'Sandstone', 'Granite', 'Travertine', 'Resin', 'Porcelain']
+    .forEach((surf) => {
+      assert.strictEqual(Rates.rateFor(base, 'Pressure washing', surf), 3.50, surf);
+    });
 });
 
-check('pressure washing is €4.00 on the premium surfaces', () => {
-  // tarmac, block paving, resin, decking + the two soft stones
-  ['Tarmac', 'Block paving', 'Resin', 'Decking', 'Limestone', 'Travertine']
-    .forEach((surf) => {
-      assert.strictEqual(Rates.rateFor(base, 'Pressure washing', surf), 4.00, surf);
-    });
+check('pressure washing is €4.00 on tarmac, limestone and decking only', () => {
+  ['Tarmac', 'Limestone', 'Decking'].forEach((surf) => {
+    assert.strictEqual(Rates.rateFor(base, 'Pressure washing', surf), 4.00, surf);
+  });
+  // Nothing else may creep into the premium band.
+  const premium = Rates.GROUND_SURFACES.filter(
+    (s) => Rates.rateFor(base, 'Pressure washing', s) === 4.00);
+  assert.strictEqual(premium.join('|'), 'Tarmac|Limestone|Decking');
 });
 
 check('every ground surface has all three ground services priced', () => {

@@ -54,14 +54,11 @@
   var PRESSURE_WASH_STANDARD = 3.50;
   var PRESSURE_WASH_PREMIUM = 4.00;
 
-  /* Surfaces that take the higher pressure-washing rate. */
+  /* The only surfaces that take the higher pressure-washing rate. */
   var PRESSURE_WASH_PREMIUM_SURFACES = [
     'Tarmac',
-    'Block paving',
-    'Resin',
-    'Decking',
     'Limestone',
-    'Travertine',
+    'Decking',
   ];
 
   var INSTANT_SOFTWASH = 4.50;
