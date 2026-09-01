@@ -94,16 +94,16 @@ The **Rates** tab holds the €/m² grid of service × surface, plus contingency
 minimum charge and VAT. Edits save to that browser; to change the defaults for
 every device edit `DEFAULT_RATES` in `js/rates.js`.
 
-| | Everything else | Tarmac, limestone, decking | Roof |
+| | Everything else | Block paving, tarmac, limestone, resin, decking | Roof |
 | --- | --- | --- | --- |
 | Pressure washing | €3.50 | €4.00 | — |
 | Instant softwash | €4.50 | €4.50 | — |
 | Progressive softwash | €3.50 | €3.50 | — |
 | Roof cleaning | — | — | €7.50 flat tiles / €8.50 other |
 
-"Everything else" is concrete, block paving, sandstone, granite, travertine,
-resin and porcelain. A blank cell means "not offered" — the app flags such a
-line on the quote rather than quietly pricing it at zero.
+"Everything else" is concrete, sandstone, granite, travertine and porcelain.
+A blank cell means "not offered" — the app flags such a line on the quote
+rather than quietly pricing it at zero.
 
 The card is defined as **rules, not a 4 × 12 grid of literals**, at the top of
 `js/rates.js`: a standard pressure-washing rate, a list of surfaces that take

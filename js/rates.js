@@ -56,8 +56,10 @@
 
   /* The only surfaces that take the higher pressure-washing rate. */
   var PRESSURE_WASH_PREMIUM_SURFACES = [
+    'Block paving',
     'Tarmac',
     'Limestone',
+    'Resin',
     'Decking',
   ];
 
